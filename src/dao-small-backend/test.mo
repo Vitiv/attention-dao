@@ -144,7 +144,9 @@ module {
             Debug.print("Total votes: " # debug_show(p.votes.size()));
             let yesVotes = Array.filter<(Principal, DAO.Vote)>(p.votes, func (vote) { vote.1.value == ?true });
             let noVotes = Array.filter<(Principal, DAO.Vote)>(p.votes, func (vote) { vote.1.value == ?false });
+            let totalVotes = Array.filter<(Principal, DAO.Vote)>(p.votes, func (vote) { vote.1.value == null});
             Debug.print("Yes votes: " # debug_show(yesVotes.size()) # ", No votes: " # debug_show(noVotes.size()));
+            Debug.print("Total votes (notVoted): " # debug_show(totalVotes.size()));
           };
           case (null) {
             Debug.print("Failed to retrieve proposal after creation");
@@ -209,6 +211,8 @@ module {
         let noVotes = Array.filter<(Principal, DAO.Vote)>(p.votes, func (vote) { vote.1.value == ?false });
         let yesVotingPower = calculateVotingPower(p.votes, func (vote) = vote.value == ?true);
         let noVotingPower = calculateVotingPower(p.votes, func (vote) = vote.value == ?false);
+        let totalVotes = Array.filter<(Principal, DAO.Vote)>(p.votes, func (vote) { vote.1.value == null});
+        Debug.print("Total votes (notVoted): " # debug_show(totalVotes.size()));
         Debug.print("Yes voting power: " # debug_show(yesVotingPower) # ", No voting power: " # debug_show(noVotingPower)); 
         Debug.print("Yes votes: " # debug_show(yesVotes.size()) # ", No votes: " # debug_show(noVotes.size()));
       };

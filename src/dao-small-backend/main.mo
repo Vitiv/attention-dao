@@ -5,9 +5,12 @@ import CommonTypes "./CommonTypes";
 import HashMap "mo:base/HashMap";
 import Iter "mo:base/Iter";
 import Debug "mo:base/Debug";
+import Nat "mo:base/Nat";
 import Test "./test";
+import Ledger "./Ledger";
 
 actor {
+  
   public type ProposalContent = {
     description: Text;
     action: Text;
@@ -48,11 +51,27 @@ actor {
     #ok
   };
 
+  func getVotingPower(user : Principal) : async* Nat {
+    switch (members.get(user)) {
+      case (?member) {
+        Debug.print("main.getVotingPower: Voting power for " # Principal.toText(user) # ": " # Nat.toText(member.votingPower));
+        member.votingPower
+      };
+      case null {
+        Debug.print("main.getVotingPower: Member not found for " # Principal.toText(user) # ". Returning 0 voting power.");
+        0
+      };
+    }
+    //await Ledger.getBalance(user);
+  };
+
+
   let dao = DAO.Dao<system, ProposalContent>(
     daoStableData,
     executeProposal,
     rejectProposal,
-    validateProposal
+    validateProposal,
+    getVotingPower,
   );
 
   // Функции управления членством
@@ -109,6 +128,8 @@ actor {
   public query func getProposals(count : Nat, offset : Nat) : async CommonTypes.PagedResult<DAO.Proposal<ProposalContent>> {
     dao.getProposals(count, offset)
   };
+  
+
 
   // Вспомогательные функции
 
@@ -150,6 +171,10 @@ actor {
       getProposals = func (count: Nat, offset: Nat) : async CommonTypes.PagedResult<DAO.Proposal<ProposalContent>> {
         await getProposals(count, offset)
       };
+     // getVotingPower : Principal -> Nat,
+     getVotingPower = func (id: Principal) : async Nat {
+      await* getVotingPower(id)
+     }
     }
   };
 

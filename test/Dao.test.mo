@@ -32,11 +32,16 @@ func validateProposal(content : ProposalContent) : async* Result.Result<(), [Tex
     #ok
 };
 
+func getVotingPower(member : Principal) : async* Nat {
+    10;
+};
+
 let dao = DAO.Dao<system, ProposalContent>(
     initialData,
     executeProposal,
     rejectProposal,
-    validateProposal
+    validateProposal,
+    getVotingPower
 );
 
 await suite(

@@ -104,6 +104,8 @@ module {
         #alreadyVoted;
         #votingClosed;
         #proposalNotFound;
+        // #insufficientVotingPower;
+        #wrongVotingPower;
     };
 
     public class Dao<system, TProposalContent>(
@@ -111,6 +113,7 @@ module {
         onProposalExecute : Proposal<TProposalContent> -> async* Result.Result<(), Text>,
         onProposalReject : Proposal<TProposalContent> -> async* (),
         onProposalValidate : TProposalContent -> async* Result.Result<(), [Text]>,
+        getVotingPower : Principal -> async* Nat,
     ) {
         func hashNat(n : Nat) : Nat32 = Nat32.fromNat(n); // TODO
 
@@ -196,7 +199,15 @@ module {
             if (existingVote.value != null) {
                 return #err(#alreadyVoted);
             };
-            await* voteInternal(proposal, voterId, vote, existingVote.votingPower);
+            // set user voting power
+
+            let votingPower = await* getVotingPower(voterId);
+            if (votingPower == 0 or votingPower > proposal.votingSummary.notVoted) {
+                return #err(#wrongVotingPower);
+            };
+            Debug.print("Dao.vote: VotingSummary before vote: " # debug_show (proposal.votingSummary));
+            Debug.print("Voting power: " # Nat.toText(votingPower));
+            await* voteInternal(proposal, voterId, vote, votingPower);
             #ok;
         };
 
