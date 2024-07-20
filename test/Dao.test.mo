@@ -5,6 +5,7 @@ import Debug "mo:base/Debug";
 import Nat "mo:base/Nat";
 import Bool "mo:base/Bool";
 import Result "mo:base/Result";
+import CT "../src/dao-small-backend/CommonTypes";
 
 let testPrincipal1 = Principal.fromText("aaaaa-aa");
 let testPrincipal2 = Principal.fromText("2vxsx-fae");
@@ -25,7 +26,8 @@ func executeProposal(proposal : DAO.Proposal<ProposalContent>) : async* Result.R
     #ok
 };
 
-func rejectProposal(proposal : DAO.Proposal<ProposalContent>) : async* () {
+func rejectProposal(proposal : DAO.Proposal<ProposalContent>) : async* CT.CommonResult {
+    #ok
 };
 
 func validateProposal(content : ProposalContent) : async* Result.Result<(), [Text]> {
@@ -155,3 +157,121 @@ await suite(
         );
     },
 );
+/*
+import { test; suite } "mo:test/async";
+import DAO "../src/dao-small-backend/Dao";
+import Principal "mo:base/Principal";
+import Debug "mo:base/Debug";
+import Nat "mo:base/Nat";
+import Bool "mo:base/Bool";
+import Result "mo:base/Result";
+
+let testPrincipal1 = Principal.fromText("aaaaa-aa");
+let testPrincipal2 = Principal.fromText("2vxsx-fae");
+let testPrincipal3 = Principal.fromText("mls5s-5qaaa-aaaal-qi6rq-cai");
+
+type ProposalContent = {
+    description: Text;
+    action: Text;
+};
+
+let initialData : DAO.StableData<ProposalContent> = {
+    proposals = [];
+    proposalDuration = #days(1);
+    votingThreshold = #percent({ percent = 51; quorum = ?25 });
+};
+
+func executeProposal(proposal : DAO.Proposal<ProposalContent>) : async* Result.Result<(), Text> {
+    #ok
+};
+
+func rejectProposal(proposal : DAO.Proposal<ProposalContent>) : async* () {
+};
+
+func validateProposal(content : ProposalContent) : async* Result.Result<(), [Text]> {
+    if (content.description.size() < 10) {
+        #err(["Description is too short"])
+    } else if (content.action.size() < 5) {
+        #err(["Action is too short"])
+    } else {
+        #ok
+    }
+};
+
+func getVotingPower(member : Principal) : async* Nat {
+    10;
+};
+
+let dao = DAO.Dao<system, ProposalContent>(
+    initialData,
+    executeProposal,
+    rejectProposal,
+    validateProposal,
+    getVotingPower
+);
+
+await suite(
+    "DAO method tests",
+    func() : async () {
+        // ... (предыдущие тесты остаются без изменений)
+
+        await test(
+            "validateProposal",
+            func() : async () {
+                // Тест валидного предложения
+                let validContent : ProposalContent = {
+                    description = "This is a valid description for a proposal";
+                    action = "Valid action";
+                };
+                let validResult = await* dao.validateProposal(validContent);
+                switch (validResult) {
+                    case (#ok) {
+                        Debug.print("Valid proposal passed validation");
+                        assert true;
+                    };
+                    case (#err(errors)) {
+                        Debug.print("Valid proposal failed validation unexpectedly");
+                        Debug.print(debug_show(errors));
+                        assert false;
+                    };
+                };
+
+                // Тест предложения с коротким описанием
+                let shortDescContent : ProposalContent = {
+                    description = "Too short";
+                    action = "Valid action";
+                };
+                let shortDescResult = await* dao.validateProposal(shortDescContent);
+                switch (shortDescResult) {
+                    case (#ok) {
+                        Debug.print("Proposal with short description passed validation unexpectedly");
+                        assert false;
+                    };
+                    case (#err(errors)) {
+                        Debug.print("Proposal with short description failed validation as expected");
+                        assert (errors == ["Description is too short"]);
+                    };
+                };
+
+                // Тест предложения с коротким действием
+                let shortActionContent : ProposalContent = {
+                    description = "This is a valid description for a proposal";
+                    action = "Short";
+                };
+                let shortActionResult = await* dao.validateProposal(shortActionContent);
+                switch (shortActionResult) {
+                    case (#ok) {
+                        Debug.print("Proposal with short action passed validation unexpectedly");
+                        assert false;
+                    };
+                    case (#err(errors)) {
+                        Debug.print("Proposal with short action failed validation as expected");
+                        assert (errors == ["Action is too short"]);
+                    };
+                };
+            },
+        );
+    },
+);
+
+*/

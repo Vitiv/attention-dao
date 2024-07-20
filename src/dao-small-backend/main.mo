@@ -7,14 +7,14 @@ import Iter "mo:base/Iter";
 import Debug "mo:base/Debug";
 import Nat "mo:base/Nat";
 import Test "./test";
-import Ledger "./Ledger";
+// import Ledger "./Ledger";
+import PH "./ProposalHandler";
+import CT "./CommonTypes";
+import Rewards "./RewardSystem";
 
 actor {
   
-  public type ProposalContent = {
-    description: Text;
-    action: Text;
-  };
+  type ProposalContent = CT.ProposalContent;
 
   type Member = DAO.Member;
 
@@ -37,18 +37,34 @@ actor {
     membersEntries := [];
   };
 
-  func executeProposal(proposal : DAO.Proposal<ProposalContent>) : async* Result.Result<(), Text> {
-    // Здесь должна быть логика выполнения предложения
-    #ok
+  func executeProposal(proposal : DAO.Proposal<CT.ProposalContent>) : async* Result.Result<(), Text> {
+    switch (proposal.content) {
+        case (#codeUpdate(update)) {
+            // Implement code update logic
+            #err("Code update not implemented yet")
+        };
+        case (#transferFunds(transfer)) {
+            // Implement fund transfer logic
+            #err("Fund transfer not implemented yet")
+        };
+        case (#adjustParameters(adjustment)) {
+            // Implement parameter adjustment logic
+            #err("Parameter adjustment not implemented yet")
+        };
+        case (#other(_)) {
+          // Handle other proposal types
+          #err("Other proposal type not implemented yet")
+        }
+    };
   };
 
-  func rejectProposal(proposal : DAO.Proposal<ProposalContent>) : async* () {
-    // Здесь может быть логика, выполняемая при отклонении предложения
+  func rejectProposal(proposal : DAO.Proposal<ProposalContent>) : async* CT.CommonResult {
+    await* PH.rejectProposal(proposal);
   };
 
   func validateProposal(content : ProposalContent) : async* Result.Result<(), [Text]> {
-    // Здесь должна быть логика проверки предложения
-    #ok
+    // public func validateProposal(content : ProposalContent, proposerId : Principal) : async* Result.Result<(), [Text]> {
+    await* PH.validateProposal(content);   
   };
 
   func getVotingPower(user : Principal) : async* Nat {
@@ -111,13 +127,13 @@ actor {
   // Функции DAO
 
   public shared(msg) func createProposal(content : ProposalContent) : async Result.Result<Nat, DAO.CreateProposalError> {
-    Debug.print("Creating proposal. ");
+    Debug.print("Creating proposal: " # debug_show(content));
     let currentMembers = Iter.toArray(members.vals());
     await* dao.createProposal(msg.caller, content, currentMembers)
-  };
+};
 
   public shared(msg) func vote(proposalId : Nat, voter: Text, vote : Bool) : async Result.Result<(), DAO.VoteError> {
-    Debug.print("Voting.");
+    Debug.print("Voting. Caller: " # Principal.toText(msg.caller));
     await* dao.vote(proposalId, Principal.fromText(voter), vote)
   };
 
@@ -128,12 +144,102 @@ actor {
   public query func getProposals(count : Nat, offset : Nat) : async CommonTypes.PagedResult<DAO.Proposal<ProposalContent>> {
     dao.getProposals(count, offset)
   };
-  
 
+  // Rewards
+  let rewardSystem = Rewards.Rewards();
+
+  public shared(msg) func processUserAction(actionType: Text, user : Text) : async Result.Result<Nat, Text> {
+    Debug.print("Processing user action: " # actionType);
+    
+    // Step 1: Call the reward system
+    let rewardResult = await rewardSystem.rewardAction(msg.caller, actionType);
+    
+    switch (rewardResult) {
+      case (#err(e)) return #err("Error in reward system: " # e);
+      case (#ok) {
+        
+        let reward = await rewardSystem.getReward( Principal.fromText(user));
+        let proposalContent : ProposalContent = #transferFunds({
+          amount = reward;
+          recipient = Principal.fromText(user); 
+          purpose =  #toFund("Rewards Fund"); // e.g., "Rewards Fund", "Development Fund"               
+        });
+        
+        let proposalResult = await createProposal(proposalContent);
+        
+        switch (proposalResult) {
+          case (#err(e)) return #err("Error creating proposal: " # debug_show(e));
+          case (#ok(proposalId)) {
+            Debug.print("Proposal created with ID: " # debug_show(proposalId));
+            let ?proposal = await getProposal(proposalId);
+             // start auto voting and execution process
+            let result = await* executeRewardProposal(proposal);
+            return #ok(proposalId);
+          };
+        };
+       
+      };
+    };
+  };
+
+  // Function to execute the proposal (mint tokens)
+  func executeRewardProposal(proposal : DAO.Proposal<ProposalContent>) : async* Result.Result<(), Text> {
+    Debug.print("Executing proposal: " # debug_show(proposal.id));
+    // TODO auto voting rewards
+    
+    // Debug.print("Tokens minted as per proposal: " # proposal.content.action);
+    #ok
+  };
+  
+  public shared(msg) func executeCodeUpdate(proposalId : Nat) : async Result.Result<(), Text> {
+      switch (await getProposal(proposalId)) {
+          case (null) #err("Proposal not found");
+          case (?proposal) {
+              switch (proposal.content) {
+                  case (#codeUpdate(update)) {
+                      // Implement code update logic
+                      #err("Code update not implemented yet")
+                  };
+                  case (_) #err("Invalid proposal type for code update");
+              };
+          };
+      };
+  };
+
+  public shared(msg) func executeTransferFunds(proposalId : Nat) : async Result.Result<(), Text> {
+      switch (await getProposal(proposalId)) {
+          case (null) #err("Proposal not found");
+          case (?proposal) {
+              switch (proposal.content) {
+                  case (#transferFunds(transfer)) {
+                      // Implement fund transfer logic
+                      #err("Fund transfer not implemented yet")
+                  };
+                  case (_) #err("Invalid proposal type for fund transfer");
+              };
+          };
+      };
+  };
+
+  public shared(msg) func executeAdjustParameters(proposalId : Nat) : async Result.Result<(), Text> {
+      switch (await getProposal(proposalId)) {
+          case (null) #err("Proposal not found");
+          case (?proposal) {
+              switch (proposal.content) {
+                  case (#adjustParameters(adjustment)) {
+                      // Implement parameter adjustment logic
+                      #err("Parameter adjustment not implemented yet")
+                  };
+                  case (_) #err("Invalid proposal type for parameter adjustment");
+              };
+          };
+      };
+  };
 
   // Вспомогательные функции
 
   func isAdmin(caller: Principal) : Bool {
+    Debug.print("Checking if caller is admin. Caller: " # Principal.toText(caller));
     // В реальном приложении здесь должна быть более сложная логика проверки прав администратора
     true
   };
@@ -181,98 +287,6 @@ actor {
   // Test runner
   public func runTests() : async () {
     await Test.runTests(getTestObject());
+    // await PHTests.runTests();
   };
-// let testPrincipal1 = Principal.fromText("aaaaa-aa");
-// let testPrincipal2 = Principal.fromText("2vxsx-fae");
-// let testPrincipal3 = Principal.fromText("mls5s-5qaaa-aaaal-qi6rq-cai");
-// // type ProposalContent = {
-// //     description: Text;
-// //     action: Text;
-// //   };
-
-//   public func test() : async () {
-//     Debug.print("Running DAO tests...");
-
-//     // Создаем тестовые данные
-//     let initialData : DAO.StableData<ProposalContent> = {
-//       proposals = [];
-//       proposalDuration = #days(1);
-//       votingThreshold = #percent({ percent = 51; quorum = ?25 });
-//     };
-
-//     // Создаем экземпляр DAO
-//     let dao = DAO.Dao<system, ProposalContent>(
-//       initialData,
-//       executeProposal,
-//       rejectProposal,
-//       validateProposal
-//     );
-
-//     // Тест 1: Создание предложения
-//     let members = [
-//       { id = testPrincipal1; votingPower = 1 },
-//       { id = testPrincipal2; votingPower = 1 },
-//       { id = testPrincipal3; votingPower = 1 }
-//     ];
-//     let content : ProposalContent = {
-//       description = "Test proposal";
-//       action = "Do nothing";
-//     };
-//     let createResult = await* dao.createProposal(testPrincipal1, content, members);
-//     switch (createResult) {
-//       case (#ok(id)) {
-//         assert(id == 1);
-//         Debug.print("Test 1 passed: Proposal created successfully");
-//       };
-//       case (#err(_)) {
-//         Debug.print("Test 1 failed: Could not create proposal");
-//         assert(false);
-//       };
-//     };
-
-//     // Тест 2: Получение предложения
-//     let proposal = dao.getProposal(1);
-//     switch (proposal) {
-//       case (?p) {
-//         assert(p.id == 1);
-//         assert(p.proposerId == testPrincipal1);
-//         assert(p.content.description == "Test proposal");
-//         Debug.print("Test 2 passed: Retrieved proposal correctly");
-//       };
-//       case (null) {
-//         Debug.print("Test 2 failed: Could not retrieve proposal");
-//         assert(false);
-//       };
-//     };
-
-//     // Тест 3: Голосование
-//     let voteResult = await* dao.vote(1, testPrincipal2, true);
-//     switch (voteResult) {
-//       case (#ok) {
-//         Debug.print("Test 3 passed: Vote successful");
-//       };
-//       case (#err(_)) {
-//         Debug.print("Test 3 failed: Could not vote");
-//         assert(false);
-//       };
-//     };
-
-//     // Тест 4: Проверка результатов голосования
-//     let updatedProposal = dao.getProposal(1);
-//     switch (updatedProposal) {
-//       case (?p) {
-//         let votes = Iter.toArray(Iter.filter(p.votes.vals(), func ((_, vote) : (Principal, DAO.Vote)) : Bool { vote.value == ?true }));
-//         assert(votes.size() == 2); // Учитываем автоматический голос создателя предложения
-//         Debug.print("Test 4 passed: Vote count correct");
-//       };
-//       case (null) {
-//         Debug.print("Test 4 failed: Could not retrieve updated proposal");
-//         assert(false);
-//       };
-//     };
-
-//     Debug.print("All tests passed!");
-//   };
-
-
 }

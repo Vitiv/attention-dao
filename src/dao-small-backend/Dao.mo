@@ -1,3 +1,7 @@
+/*
+* Based on Ethan Celletti's code https://github.com/edjCase/daoball/blob/main/src/backend/Dao.mo
+*/
+
 import Principal "mo:base/Principal";
 import Nat32 "mo:base/Nat32";
 import Debug "mo:base/Debug";
@@ -111,7 +115,7 @@ module {
     public class Dao<system, TProposalContent>(
         data : StableData<TProposalContent>,
         onProposalExecute : Proposal<TProposalContent> -> async* Result.Result<(), Text>,
-        onProposalReject : Proposal<TProposalContent> -> async* (),
+        onProposalReject : Proposal<TProposalContent> -> async* CommonTypes.CommonResult,
         onProposalValidate : TProposalContent -> async* Result.Result<(), [Text]>,
         getVotingPower : Principal -> async* Nat,
     ) {
@@ -380,7 +384,11 @@ module {
                 mutableProposal.statusLog.add(newStatus);
             } else {
                 mutableProposal.statusLog.add(#rejected({ time = Time.now() }));
-                await* onProposalReject(proposal);
+                switch (await* onProposalReject(proposal)) {
+                    case (#ok) ();
+                    case (#err(e)) Debug.trap("onProposalReject failed: " # e);
+                };
+
             };
         };
 
