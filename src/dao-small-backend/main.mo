@@ -1,16 +1,18 @@
-import Principal "mo:base/Principal";
-import Result "mo:base/Result";
-import DAO "./Dao";
-import CommonTypes "./CommonTypes";
+import Debug "mo:base/Debug";
 import HashMap "mo:base/HashMap";
 import Iter "mo:base/Iter";
-import Debug "mo:base/Debug";
 import Nat "mo:base/Nat";
-import Test "./test";
-// import Ledger "./Ledger";
-import PH "./ProposalHandler";
+import Principal "mo:base/Principal";
+import Result "mo:base/Result";
+
+import CommonTypes "./CommonTypes";
 import CT "./CommonTypes";
+import DAO "./Dao";
+import Ledger "./Ledger";
+import PH "./ProposalHandler";
 import Rewards "./RewardSystem";
+import Test "./test";
+import RT "./reward.test";
 
 actor {
   
@@ -45,7 +47,15 @@ actor {
         };
         case (#transferFunds(transfer)) {
             // Implement fund transfer logic
-            #err("Fund transfer not implemented yet")
+            let result = await Ledger.transfer(transfer.recipient, transfer.amount);
+            switch (result) {
+              case (true) { 
+                #ok 
+                };
+              case (false) {
+                #err("Fund transfer not implemented yet");
+                };
+            };
         };
         case (#adjustParameters(adjustment)) {
             // Implement parameter adjustment logic
@@ -148,17 +158,19 @@ actor {
   // Rewards
   let rewardSystem = Rewards.Rewards();
 
-  public shared(msg) func processUserAction(actionType: Text, user : Text) : async Result.Result<Nat, Text> {
-    Debug.print("Processing user action: " # actionType);
+  public shared(msg) func processUserAction(action: Text, user : Text) : async Result.Result<Nat, Text> {
+    let actionType = CT.textToActionType(action);
+    Debug.print("Processing user action: " # action);
     
     // Step 1: Call the reward system
-    let rewardResult = await rewardSystem.rewardAction(msg.caller, actionType);
+    let rewardResult = await rewardSystem.rewardAction(Principal.fromText(user), actionType);
     
     switch (rewardResult) {
       case (#err(e)) return #err("Error in reward system: " # e);
       case (#ok) {
         
-        let reward = await rewardSystem.getReward( Principal.fromText(user));
+        let reward = await rewardSystem.getUserReward(Principal.fromText(user));
+        Debug.print("Got Reward for user " # user # ": " # debug_show(reward));
         let proposalContent : ProposalContent = #transferFunds({
           amount = reward;
           recipient = Principal.fromText(user); 
@@ -284,9 +296,61 @@ actor {
     }
   };
 
-  // Test runner
+func getRewardTestObject() : RT.TestActorInterface {
+  {
+    processUserAction = func (action: Text, user : Text) : async Result.Result<Nat, Text> {
+      await processUserAction(action, user)
+    };
+    
+    getUserReward = func (user: Principal) : async Nat {
+      await rewardSystem.getUserReward(user)
+    };
+    
+    setReward = func (actionType: CommonTypes.ActionType, amount: Nat) : async Result.Result<(), Text> {
+      await rewardSystem.setReward(actionType, amount)
+    };
+    
+    getReward = func (actionType: CommonTypes.ActionType) : async Result.Result<Nat, Text> {
+      await rewardSystem.getReward(actionType)
+    };
+    
+    rewardVoting = func (user: Principal, proposalId: Nat) : async Nat {
+      await rewardSystem.rewardVoting(user, proposalId)
+    };
+    
+    distributeMonthlyVotingRewards = func () : async () {
+      await rewardSystem.distributeMonthlyVotingRewards()
+    };
+    
+    convertRewardToFocus = func (user: Principal) : async Result.Result<Nat, Text> {
+      await rewardSystem.convertRewardToFocus(user)
+    };
+    
+    stakeRewards = func (user: Principal, amount: Nat, period: Nat) : async Result.Result<(), Text> {
+      await rewardSystem.stakeRewards(user, amount, period)
+    };
+    
+    calculateStakingReward = func (user: Principal) : async Result.Result<Nat, Text> {
+      await rewardSystem.calculateStakingReward(user)
+    };
+    
+    unstake = func (user: Principal) : async Result.Result<Nat, Text> {
+      await rewardSystem.unstake(user)
+    };
+  }
+};
+
+public func getRewards() : async [(Text, Nat)] {
+  await rewardSystem.getRewards()
+};
+
+  // Test runners
   public func runTests() : async () {
     await Test.runTests(getTestObject());
+    Debug.print("Tests from test.mo completed.");
     // await PHTests.runTests();
+    Debug.print("---------------------------------------------------------------------");
+    await RT.runTests(getRewardTestObject());
+    Debug.print("---------------------------------------------------------------------");
   };
 }

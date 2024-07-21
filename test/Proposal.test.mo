@@ -43,12 +43,12 @@ actor {
     func testValidateProposal() : async () {
         Debug.print("Тест: валидация предложения");
 
-        let validContent : ProposalContent = {
+        let validContent : ProposalContent = #other{
             description = "Это валидное тестовое предложение длиной более 10 символов";
             action = "Валидное действие";
         };
 
-        let invalidContent : ProposalContent = {
+        let invalidContent : ProposalContent = #other{
             description = "Короткое";
             action = "Кратко";
         };

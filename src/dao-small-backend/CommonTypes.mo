@@ -1,3 +1,5 @@
+import Text "mo:base/Text";
+
 module {
     public type PagedResult<T> = {
         data : [T];
@@ -34,6 +36,32 @@ module {
         #other : {
             description : Text;
             action : Text;
+        };
+    };
+
+    public type ActionType = {
+        #Reaction;
+        #Review;
+        #Registration;
+        #Custom : Text;
+    };
+
+    public func textToActionType(text : Text) : ActionType {
+        switch (text) {
+            case ("reaction" or "Reaction" or "REACTION") #Reaction;
+            case ("review" or "Review" or "REVIEW") #Review;
+            case ("registration" or "Registration" or "REGISTRATION") #Registration;
+            case _ #Custom(text);
+        };
+    };
+
+    public func actionTypeToString(actionType : ActionType) : Text {
+        switch (actionType) {
+            case (#Reaction) "reaction";
+            case (#Review) "review";
+            case (#Registration) "registration";
+            case (#Custom(text)) text;
+            case _ "unknown";
         };
     };
 };

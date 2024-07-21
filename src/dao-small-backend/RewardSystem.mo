@@ -9,14 +9,21 @@ import Iter "mo:base/Iter";
 import Debug "mo:base/Debug";
 import Result "mo:base/Result";
 import Int "mo:base/Int";
+import Text "mo:base/Text";
+import CT "./CommonTypes";
 
 module {
+    type ActionType = CT.ActionType;
+
     public class Rewards() = Self {
         // Rewards in cents FOCUS
-        var REACTION_REWARD : Nat = 1;
-        var REVIEW_REWARD : Nat = 10;
-        var REGISTRATION_REWARD : Nat = 20;
-        let FOCUS_TO_CENTS : Nat = 100; // 1 FOCUS = 100 cents
+        let FOCUS_TO_CENTS : Nat = 100;
+        private var actionRewards = HashMap.HashMap<ActionType, Nat>(10, actionTypeEqual, actionTypeHash);
+
+        // Initialize default rewards
+        actionRewards.put(#Reaction, 1);
+        actionRewards.put(#Review, 10);
+        actionRewards.put(#Registration, 20); // 1 FOCUS = 100 cents
 
         // Staking parameters
         let STAKING_PERIODS : [Nat] = [2, 4, 6, 8]; // in years
@@ -25,6 +32,7 @@ module {
 
         type UserRewards = {
             var totalReward : Nat;
+            // TODO actionRewards : HashMap<ActionType, Nat>;
             var lastRewardTime : Time.Time;
             var votingParticipation : Nat;
             var stakedAmount : Nat;
@@ -34,32 +42,39 @@ module {
 
         let userRewards = HashMap.HashMap<Principal, UserRewards>(10, Principal.equal, Principal.hash);
 
-        public func setReward(rewardName : Text, amount : Nat) : Result.Result<(), Text> {
-            switch (rewardName) {
-                case "reaction" { REACTION_REWARD := amount; #ok(()) };
-                case "review" { REVIEW_REWARD := amount; #ok(()) };
-                case "registration" { REGISTRATION_REWARD := amount; #ok(()) };
-                case _ { #err("Invalid reward name: " # rewardName) };
+        public func setReward(actionType : ActionType, amount : Nat) : async Result.Result<(), Text> {
+            actionRewards.put(actionType, amount);
+            #ok(());
+        };
+
+        public func getReward(actionType : ActionType) : async Result.Result<Nat, Text> {
+            switch (actionRewards.get(actionType)) {
+                case (?reward) #ok(reward);
+                case null #err("Reward not found for action type");
             };
         };
 
-        public func getReward(user : Principal) : async Nat {
+        public func getRewards() : async [(Text, Nat)] {
+            let rewards = Iter.toArray(actionRewards.entries());
+            Array.map<(ActionType, Nat), (Text, Nat)>(rewards, func(entry) { (CT.actionTypeToString(entry.0), entry.1) });
+        };
+
+        public func getUserReward(user : Principal) : async Nat {
             switch (userRewards.get(user)) {
                 case null 0;
                 case (?reward) reward.totalReward;
             };
         };
 
-        public func rewardAction(user : Principal, actionType : Text) : async Result.Result<(), Text> {
-            let reward = switch (actionType) {
-                case "reaction" REACTION_REWARD;
-                case "review" REVIEW_REWARD;
-                case "registration" REGISTRATION_REWARD;
-                case _ return #err("Invalid action type");
+        public func rewardAction(user : Principal, actionType : ActionType) : async Result.Result<(), Text> {
+            switch (actionRewards.get(actionType)) {
+                case (?reward) {
+                    Debug.print("Rewarding action: " # CT.actionTypeToString(actionType) # " to user: " # Principal.toText(user) # " with reward: " # Nat.toText(reward));
+                    await addReward(user, reward);
+                    #ok(());
+                };
+                case null #err("Invalid action type");
             };
-
-            await addReward(user, reward);
-            #ok(());
         };
 
         public func rewardVoting(user : Principal, proposalId : Nat) : async Nat {
@@ -102,6 +117,7 @@ module {
         };
 
         private func addReward(user : Principal, rewardCents : Nat) : async () {
+            Debug.print("RewardSystem.addReward: Adding reward of " # Nat.toText(rewardCents) # " cents FOCUS to user: " # Principal.toText(user));
             switch (userRewards.get(user)) {
                 case null {
                     userRewards.put(
@@ -115,10 +131,12 @@ module {
                             var stakingStartTime = Time.now();
                         },
                     );
+                    Debug.print("RewardSystem.addReward: Added reward of " # Nat.toText(rewardCents) # " cents FOCUS to user: " # Principal.toText(user));
                 };
                 case (?reward) {
                     reward.totalReward += rewardCents;
                     reward.lastRewardTime := Time.now();
+                    Debug.print("RewardSystem.addReward: Change reward to " # Nat.toText(reward.totalReward) # " cents FOCUS to user: " # Principal.toText(user));
                 };
             };
         };
@@ -210,4 +228,34 @@ module {
         };
         false;
     };
+
+    func _validateRewardName(rewardName : Text) : Bool {
+        switch (rewardName) {
+            case "reaction" true;
+            case "review" true;
+            case "registration" true;
+            case "voting" true;
+            case _ false;
+        };
+    };
+
+    private func actionTypeEqual(a : ActionType, b : ActionType) : Bool {
+        switch (a, b) {
+            case (#Reaction, #Reaction) true;
+            case (#Review, #Review) true;
+            case (#Registration, #Registration) true;
+            case (#Custom(textA), #Custom(textB)) Text.equal(textA, textB);
+            case _ false;
+        };
+    };
+
+    private func actionTypeHash(a : ActionType) : Nat32 {
+        switch (a) {
+            case (#Reaction) 1;
+            case (#Review) 2;
+            case (#Registration) 3;
+            case (#Custom(text)) Text.hash(text);
+        };
+    };
+
 };
