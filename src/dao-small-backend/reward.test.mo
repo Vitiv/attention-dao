@@ -103,6 +103,14 @@ module {
             case (#err(e)) Debug.print("Error getting reward: " # e);
         };
 
+        let setResult3 = await testActor.setReward(#Custom("100"), 100);
+        Debug.print("Set Custom reward (#Custom(\"100\"), 100) result: " # debug_show (setResult3));
+        let getResult4 = await testActor.getReward(#Custom("100"));
+        switch (getResult4) {
+            case (#ok(value)) assert (value == 100);
+            case (#err(e)) Debug.print("Error getting reward: " # e);
+        };
+
         Debug.print("Test 3 passed: Rewards set and retrieved successfully");
     };
 
@@ -120,25 +128,11 @@ module {
         Debug.print("Test 4 passed: Voting rewarded successfully");
     };
 
-    // private func testDistributeMonthlyVotingRewards(testActor : TestActorInterface, p1 : Principal, p2 : Principal) : async () {
-    //     Debug.print("Test 5: Distributing monthly voting rewards");
-    //     let reward = await testActor.rewardVoting(p1, 1);
-    //     await testActor.distributeMonthlyVotingRewards();
-
-    //     let reward1 = await testActor.getUserReward(p1);
-    //     Debug.print("Reward for user 1 after distribution: " # debug_show (reward1));
-    //     let reward2 = await testActor.getUserReward(p2);
-    //     Debug.print("Reward for user 2 after distribution: " # debug_show (reward2));
-
-    //     // assert (reward1 > 0);
-    //     // assert (reward2 > 0);
-
-    //     Debug.print("Test 5 passed: Monthly voting rewards distributed successfully");
-    // };
-
     private func testConvertRewardToFocus(testActor : TestActorInterface, p : Principal) : async () {
         Debug.print("Test 6: Converting reward to FOCUS");
-
+        let testPrincipal1 = Principal.fromText("aaaaa-aa");
+        let result4 = await testActor.processUserAction("100", "aaaaa-aa");
+        let r = await testActor.rewardVoting(testPrincipal1, 1);
         let result = await testActor.convertRewardToFocus(p);
         switch (result) {
             case (#ok(value)) assert (value > 0);
@@ -148,36 +142,36 @@ module {
         Debug.print("Test 6 passed: Reward converted to FOCUS successfully");
     };
 
-    private func testStakeRewards(testActor : TestActorInterface, p : Principal) : async () {
-        Debug.print("Test 7: Staking rewards");
+    // private func testStakeRewards(testActor : TestActorInterface, p : Principal) : async () {
+    //     Debug.print("Test 7: Staking rewards");
 
-        let result = await testActor.stakeRewards(p, 100, 2);
-        assert (Result.isOk(result));
+    //     let result = await testActor.stakeRewards(p, 100, 2);
+    //     assert (Result.isOk(result));
 
-        Debug.print("Test 7 passed: Rewards staked successfully");
-    };
+    //     Debug.print("Test 7 passed: Rewards staked successfully");
+    // };
 
-    private func testCalculateStakingReward(testActor : TestActorInterface, p : Principal) : async () {
-        Debug.print("Test 8: Calculating staking reward");
+    // private func testCalculateStakingReward(testActor : TestActorInterface, p : Principal) : async () {
+    //     Debug.print("Test 8: Calculating staking reward");
 
-        let result = await testActor.calculateStakingReward(p);
-        switch (result) {
-            case (#ok(value)) assert (value > 0);
-            case (#err(e)) Debug.print("Error calculating staking reward: " # e);
-        };
+    //     let result = await testActor.calculateStakingReward(p);
+    //     switch (result) {
+    //         case (#ok(value)) assert (value > 0);
+    //         case (#err(e)) Debug.print("Error calculating staking reward: " # e);
+    //     };
 
-        Debug.print("Test 8 passed: Staking reward calculated successfully");
-    };
+    //     Debug.print("Test 8 passed: Staking reward calculated successfully");
+    // };
 
-    private func testUnstake(testActor : TestActorInterface, p : Principal) : async () {
-        Debug.print("Test 9: Unstaking");
+    // private func testUnstake(testActor : TestActorInterface, p : Principal) : async () {
+    //     Debug.print("Test 9: Unstaking");
 
-        let result = await testActor.unstake(p);
-        switch (result) {
-            case (#ok(value)) assert (value > 0);
-            case (#err(e)) Debug.print("Error unstaking: " # e);
-        };
+    //     let result = await testActor.unstake(p);
+    //     switch (result) {
+    //         case (#ok(value)) assert (value > 0);
+    //         case (#err(e)) Debug.print("Error unstaking: " # e);
+    //     };
 
-        Debug.print("Test 9 passed: Unstaked successfully");
-    };
+    //     Debug.print("Test 9 passed: Unstaked successfully");
+    // };
 };

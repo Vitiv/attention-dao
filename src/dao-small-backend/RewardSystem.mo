@@ -92,7 +92,7 @@ module {
                         var stakingStartTime = Time.now();
                     };
                     userRewards.put(user, newReward);
-                    
+
                     newReward;
                 };
                 case (?reward) {
@@ -147,11 +147,14 @@ module {
             switch (userRewards.get(user)) {
                 case null #err("User not found");
                 case (?reward) {
+                    if (reward.totalReward < FOCUS_TO_CENTS) {
+                        return #err("Insufficient reward balance for convertion");
+                    };
                     Debug.print("RewardSystem.convertRewardToFocus: Converting reward of " # Nat.toText(reward.totalReward) # " cents FOCUS to user: " # Principal.toText(user));
                     let focusTokens = reward.totalReward / FOCUS_TO_CENTS;
-                    if (focusTokens == 0) {
-                        return #err("Insufficient reward balance");
-                    };
+                    // if (focusTokens == 0) {
+                    //     return #err("Insufficient reward balance");
+                    // };
                     reward.totalReward := reward.totalReward % FOCUS_TO_CENTS;
                     // Here should be logic for actual transfer of FOCUS tokens to the user
                     #ok(focusTokens);
