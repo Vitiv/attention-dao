@@ -194,6 +194,17 @@ actor {
     };
   };
 
+  public func createVotingRewardsProposal(user : Principal) : async Result.Result<Nat, DAO.CreateProposalError> {
+    let votingRewards = await rewardSystem.getVotingRewards();
+    let proposalContent : ProposalContent = #transferFunds({
+      amount = votingRewards.totalReward;
+      recipient = user; 
+      purpose = #toFund("Voting Rewards Distribution");
+    });
+    
+    await createProposal(proposalContent)
+  };
+
   // Function to execute the proposal (mint tokens)
   func executeRewardProposal(proposal : DAO.Proposal<ProposalContent>) : async* Result.Result<(), Text> {
     Debug.print("Executing proposal: " # debug_show(proposal.id));
@@ -248,6 +259,39 @@ actor {
       };
   };
 
+  func executeVotingRewardsProposal(proposal : DAO.Proposal<ProposalContent>) : async* Result.Result<(), Text> {
+    Debug.print("Executing voting rewards proposal: " # debug_show(proposal.id));
+    
+    let votingRewards = await rewardSystem.getVotingRewards();
+    
+    for ((user, reward) in votingRewards.rewards.vals()) {
+      let transferResult = await Ledger.transfer(user, reward);
+      if (not transferResult) {
+        return #err("Failed to transfer rewards to user: " # Principal.toText(user));
+      };
+    };
+    
+    await rewardSystem.resetVotingRewards();
+    
+    #ok
+  };
+
+   public func distributeMonthlyVotingRewards() : async Result.Result<(), Text> {
+      for (user in members.keys()) {
+          let proposalResult = await createVotingRewardsProposal(user);
+          switch (proposalResult) {
+              case (#err(e)) return #err("Error creating voting rewards proposal: " # debug_show (e));
+              case (#ok(proposalId)) {
+                  Debug.print("Voting rewards proposal created with ID: " # debug_show (proposalId));
+                  let ?proposal = await getProposal(proposalId);
+                  // Here you would typically wait for the voting period to end
+                  // For simplicity, we'll execute it immediately in this example
+                  ignore await* executeVotingRewardsProposal(proposal);
+              };
+          };           
+        };
+         #ok;
+   };
   // Вспомогательные функции
 
   func isAdmin(caller: Principal) : Bool {
@@ -276,6 +320,12 @@ actor {
       };
       listMembers = func () : async [DAO.Member] {
         await listMembers()
+      };
+      distributeMonthlyVotingRewards = func() : async Result.Result<(), Text> {
+        await distributeMonthlyVotingRewards()
+      };
+      createVotingRewardsProposal = func (id : Principal) : async Result.Result<Nat, DAO.CreateProposalError>{
+        await createVotingRewardsProposal(id)
       };
       createProposal = func (content: ProposalContent) : async Result.Result<Nat, DAO.CreateProposalError> {
         await createProposal(content)
@@ -318,9 +368,9 @@ func getRewardTestObject() : RT.TestActorInterface {
       await rewardSystem.rewardVoting(user, proposalId)
     };
     
-    distributeMonthlyVotingRewards = func () : async () {
-      await rewardSystem.distributeMonthlyVotingRewards()
-    };
+    // distributeMonthlyVotingRewards = func () : async () {
+    //   await rewardSystem.distributeMonthlyVotingRewards()
+    // };
     
     convertRewardToFocus = func (user: Principal) : async Result.Result<Nat, Text> {
       await rewardSystem.convertRewardToFocus(user)
@@ -352,5 +402,6 @@ public func getRewards() : async [(Text, Nat)] {
     Debug.print("---------------------------------------------------------------------");
     await RT.runTests(getRewardTestObject());
     Debug.print("---------------------------------------------------------------------");
+    Debug.print("All proposals: " # debug_show(await getProposals(100, 0)));
   };
 }

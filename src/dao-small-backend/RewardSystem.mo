@@ -77,12 +77,14 @@ module {
             };
         };
 
+        private var votingRewards = HashMap.HashMap<Principal, Nat>(10, Principal.equal, Principal.hash);
+
         public func rewardVoting(user : Principal, proposalId : Nat) : async Nat {
             Debug.print("Rewarding voting participation for user: " # Principal.toText(user) # " for proposal: " # Nat.toText(proposalId));
             let userReward = switch (userRewards.get(user)) {
                 case null {
                     let newReward = {
-                        var totalReward = 0;
+                        var totalReward = 1;
                         var lastRewardTime = Time.now();
                         var votingParticipation = 1;
                         var stakedAmount = 0;
@@ -90,30 +92,30 @@ module {
                         var stakingStartTime = Time.now();
                     };
                     userRewards.put(user, newReward);
+                    
                     newReward;
                 };
                 case (?reward) {
                     reward.votingParticipation += 1;
+                    reward.totalReward += 1;
                     reward;
                 };
             };
-            userReward.totalReward;
+            votingRewards.put(user, userReward.votingParticipation);
+            userReward.votingParticipation;
         };
 
-        public func distributeMonthlyVotingRewards() : async () {
-            let totalVotes = Array.foldLeft<UserRewards, Nat>(
-                Iter.toArray(userRewards.vals()),
-                0,
-                func(acc, reward) { acc + reward.votingParticipation },
-            );
+        public func getVotingRewards() : async {
+            totalReward : Nat;
+            rewards : [(Principal, Nat)];
+        } {
+            let rewards = Iter.toArray(votingRewards.entries());
+            let totalReward = Array.foldLeft<(Principal, Nat), Nat>(rewards, 0, func(acc, entry) { acc + entry.1 });
+            { totalReward; rewards };
+        };
 
-            for ((user, reward) in userRewards.entries()) {
-                let baseReward : Float = 0.005; // 0.5% per month
-                let userVotingReward : Float = baseReward * (Float.fromInt(reward.votingParticipation) / Float.fromInt(totalVotes));
-                let rewardInFocus : Nat = Nat32.toNat(Nat32.fromIntWrap(Float.toInt(userVotingReward * 100.0))); // Convert to cents FOCUS
-                await addReward(user, rewardInFocus);
-                reward.votingParticipation := 0; // Reset voting counter
-            };
+        public func resetVotingRewards() : async () {
+            votingRewards := HashMap.HashMap<Principal, Nat>(10, Principal.equal, Principal.hash);
         };
 
         private func addReward(user : Principal, rewardCents : Nat) : async () {
@@ -145,6 +147,7 @@ module {
             switch (userRewards.get(user)) {
                 case null #err("User not found");
                 case (?reward) {
+                    Debug.print("RewardSystem.convertRewardToFocus: Converting reward of " # Nat.toText(reward.totalReward) # " cents FOCUS to user: " # Principal.toText(user));
                     let focusTokens = reward.totalReward / FOCUS_TO_CENTS;
                     if (focusTokens == 0) {
                         return #err("Insufficient reward balance");

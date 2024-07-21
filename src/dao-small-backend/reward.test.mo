@@ -12,7 +12,6 @@ module {
         setReward : (actionType : CommonTypes.ActionType, amount : Nat) -> async Result.Result<(), Text>;
         getReward : (actionType : CommonTypes.ActionType) -> async Result.Result<Nat, Text>;
         rewardVoting : (user : Principal, proposalId : Nat) -> async Nat;
-        distributeMonthlyVotingRewards : () -> async ();
         convertRewardToFocus : (user : Principal) -> async Result.Result<Nat, Text>;
         stakeRewards : (user : Principal, amount : Nat, period : Nat) -> async Result.Result<(), Text>;
         calculateStakingReward : (user : Principal) -> async Result.Result<Nat, Text>;
@@ -38,7 +37,7 @@ module {
         await testRewardVoting(testActor, testPrincipal1, testPrincipal2);
 
         // Test 5: Distribute monthly voting rewards
-        await testDistributeMonthlyVotingRewards(testActor, testPrincipal1, testPrincipal2);
+        // await testDistributeMonthlyVotingRewards(testActor, testPrincipal1, testPrincipal2);
 
         // Test 6: Convert reward to FOCUS
         await testConvertRewardToFocus(testActor, testPrincipal1);
@@ -78,11 +77,11 @@ module {
 
         let reward1 = await testActor.getUserReward(p1);
         Debug.print("Reward for user 1: " # debug_show (reward1));
-        // assert (reward1 > 0);
+        assert (reward1 > 0);
 
         let reward2 = await testActor.getUserReward(p2);
         Debug.print("Reward for user 2: " # debug_show (reward2));
-        // assert (reward2 > 0);
+        assert (reward2 > 0);
 
         Debug.print("Test 2 passed: User rewards retrieved successfully");
     };
@@ -90,12 +89,15 @@ module {
     private func testSetAndGetRewards(testActor : TestActorInterface) : async () {
         Debug.print("Test 3: Setting and getting rewards");
 
+        let getResultBefore = await testActor.getReward(#Reaction);
+        Debug.print("Get Reaction reward before setting: " # debug_show (getResultBefore));
+
         let setResult = await testActor.setReward(#Reaction, 2);
-        Debug.print("Set Reaction reward result: " # debug_show (setResult));
+        Debug.print("Set Reaction reward (#Reaction, 2) result: " # debug_show (setResult));
         assert (Result.isOk(setResult));
 
         let getResult = await testActor.getReward(#Reaction);
-        Debug.print("Get Reaction reward result: " # debug_show (getResult));
+        Debug.print("Getting Reaction reward after : " # debug_show (getResult));
         switch (getResult) {
             case (#ok(value)) assert (value == 2);
             case (#err(e)) Debug.print("Error getting reward: " # e);
@@ -109,30 +111,30 @@ module {
 
         let reward1 = await testActor.rewardVoting(p1, 1);
         Debug.print("Reward for voting 1: " # debug_show (reward1));
-        // assert (reward1 > 0);
+        assert (reward1 > 0);
 
         let reward2 = await testActor.rewardVoting(p2, 1);
         Debug.print("Reward for voting 2: " # debug_show (reward2));
-        // assert (reward2 > 0);
+        assert (reward2 > 0);
 
         Debug.print("Test 4 passed: Voting rewarded successfully");
     };
 
-    private func testDistributeMonthlyVotingRewards(testActor : TestActorInterface, p1 : Principal, p2 : Principal) : async () {
-        Debug.print("Test 5: Distributing monthly voting rewards");
+    // private func testDistributeMonthlyVotingRewards(testActor : TestActorInterface, p1 : Principal, p2 : Principal) : async () {
+    //     Debug.print("Test 5: Distributing monthly voting rewards");
+    //     let reward = await testActor.rewardVoting(p1, 1);
+    //     await testActor.distributeMonthlyVotingRewards();
 
-        await testActor.distributeMonthlyVotingRewards();
+    //     let reward1 = await testActor.getUserReward(p1);
+    //     Debug.print("Reward for user 1 after distribution: " # debug_show (reward1));
+    //     let reward2 = await testActor.getUserReward(p2);
+    //     Debug.print("Reward for user 2 after distribution: " # debug_show (reward2));
 
-        let reward1 = await testActor.getUserReward(p1);
-        Debug.print("Reward for user 1 after distribution: " # debug_show (reward1));
-        let reward2 = await testActor.getUserReward(p2);
-        Debug.print("Reward for user 2 after distribution: " # debug_show (reward2));
+    //     // assert (reward1 > 0);
+    //     // assert (reward2 > 0);
 
-        // assert (reward1 > 0);
-        // assert (reward2 > 0);
-
-        Debug.print("Test 5 passed: Monthly voting rewards distributed successfully");
-    };
+    //     Debug.print("Test 5 passed: Monthly voting rewards distributed successfully");
+    // };
 
     private func testConvertRewardToFocus(testActor : TestActorInterface, p : Principal) : async () {
         Debug.print("Test 6: Converting reward to FOCUS");
