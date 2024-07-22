@@ -118,7 +118,7 @@ module {
             votingRewards := HashMap.HashMap<Principal, Nat>(10, Principal.equal, Principal.hash);
         };
 
-        private func addReward(user : Principal, rewardCents : Nat) : async () {
+        public func addReward(user : Principal, rewardCents : Nat) : async () {
             Debug.print("RewardSystem.addReward: Adding reward of " # Nat.toText(rewardCents) # " cents FOCUS to user: " # Principal.toText(user));
             switch (userRewards.get(user)) {
                 case null {

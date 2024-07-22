@@ -96,6 +96,7 @@ module {
         #ok;
         #alreadyExists;
         #notAuthorized;
+        #otherError : Text;
     };
 
     public type CreateProposalError = {

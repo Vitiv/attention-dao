@@ -2,8 +2,12 @@ import Debug "mo:base/Debug";
 import HashMap "mo:base/HashMap";
 import Iter "mo:base/Iter";
 import Nat "mo:base/Nat";
+import Nat8 "mo:base/Nat8";
+import Token "mo:icrc1/ICRC1/Canisters/Token";
 import Principal "mo:base/Principal";
 import Result "mo:base/Result";
+import Error "mo:base/Error";
+import Cycles "mo:base/ExperimentalCycles";
 
 import CommonTypes "./CommonTypes";
 import CT "./CommonTypes";
@@ -14,7 +18,8 @@ import Rewards "./RewardSystem";
 import Test "./test";
 import RT "./reward.test";
 
-actor {
+
+actor Main {
   
   type ProposalContent = CT.ProposalContent;
 
@@ -29,6 +34,57 @@ actor {
   stable var membersEntries : [(Principal, Member)] = [];
   var members = HashMap.HashMap<Principal, Member>(10, Principal.equal, Principal.hash);
 
+  var ledger : ?Ledger.Ledger = null;
+
+    public shared(msg) func initializeLedger() : async Result.Result<Text, Text> {
+       Cycles.add<system>(30_000_000_000);
+        ledger := ?Ledger.Ledger();
+        switch (ledger) {
+            case (?l) await l.createToken("FOCUS", "FOCUS", Principal.toText(msg.caller));
+            case (null) #err("Failed to initialize ledger");
+        };
+    };
+
+    //--------------------------------------------------------------
+
+    func getVotingPower(user : Principal) : async* Nat {
+        switch (ledger) {
+            case (?l) { 
+                let balance = await l.getBalance(user);
+                Debug.print("main.getVotingPower: l.getBalance result: " # Nat.toText(balance));
+                balance;
+               };
+            case null {
+                ignore await initializeLedger();
+                Debug.print("main.getVotingPower: Ledger initialized");
+                0
+            };
+        };
+    };
+
+    public shared(msg) func executeTransferFunds(proposalId : Nat) : async Result.Result<(), Text> {
+        switch (await getProposal(proposalId)) {
+            case (null) #err("Proposal not found");
+            case (?proposal) {
+                switch (proposal.content) {
+                    case (#transferFunds(transfer)) {
+                        switch (ledger) {
+                            case (?l) {
+                                let transferResult = await l.transfer(transfer.recipient, transfer.amount);
+                                if (transferResult) {
+                                    #ok()
+                                } else {
+                                    #err("Transfer failed")
+                                }
+                            };
+                            case null #err("LedgerManager not initialized");
+                        };
+                    };
+                    case (_) #err("Invalid proposal type for fund transfer");
+                };
+            };
+        };
+    };
   system func preupgrade() {
     daoStableData := dao.toStableData();
     membersEntries := Iter.toArray(members.entries());
@@ -45,16 +101,22 @@ actor {
             // Implement code update logic
             #err("Code update not implemented yet")
         };
-        case (#transferFunds(transfer)) {            
-            let result = await Ledger.transfer(transfer.recipient, transfer.amount);
-            switch (result) {
-              case (true) { 
-                #ok 
-                };
-              case (false) {
-                #err("Error during fund transfer");
-                };
+        case (#transferFunds(transfer)) { 
+          switch (ledger) {
+            case (?l) {
+              let result = await l.transfer(transfer.recipient, transfer.amount);
+              switch (result) {
+                case (true) { 
+                  #ok 
+                  };
+                case (false) {
+                  #err("Error during fund transfer");
+                  };
+              };
             };
+            case null #err("Ledger not initialized");
+          }           
+            
         };
         case (#adjustParameters(adjustment)) {
             // Implement parameter adjustment logic
@@ -76,21 +138,6 @@ actor {
     await* PH.validateProposal(content);   
   };
 
-  func getVotingPower(user : Principal) : async* Nat {
-    switch (members.get(user)) {
-      case (?member) {
-        Debug.print("main.getVotingPower: Voting power for " # Principal.toText(user) # ": " # Nat.toText(member.votingPower));
-        member.votingPower
-      };
-      case null {
-        Debug.print("main.getVotingPower: Member not found for " # Principal.toText(user) # ". Returning 0 voting power.");
-        0
-      };
-    }
-    //await Ledger.getBalance(user);
-  };
-
-
   let dao = DAO.Dao<system, ProposalContent>(
     daoStableData,
     executeProposal,
@@ -99,7 +146,7 @@ actor {
     getVotingPower,
   );
 
-  // Функции управления членством
+  // Membership management
 
   public shared(msg) func addMember(id: Principal, votingPower: Nat) : async DAO.AddMemberResult {
     if (not isAdmin(msg.caller)) {
@@ -109,6 +156,12 @@ actor {
       case (null) {
         let newMember : Member = { id = id; votingPower = votingPower };
         members.put(id, newMember);
+        switch (ledger) {
+            case (?l) { 
+              let res = l.transfer(id, votingPower);
+            };
+            case (null) return #otherError("Error when adding tokens");
+        };
         #ok
       };
       case (?_) #alreadyExists;
@@ -133,7 +186,7 @@ actor {
     Iter.toArray(members.vals())
   };
 
-  // Функции DAO
+  // Proposal management
 
   public shared(msg) func createProposal(content : ProposalContent) : async Result.Result<Nat, DAO.CreateProposalError> {
     Debug.print("Creating proposal: " # debug_show(content));
@@ -142,8 +195,19 @@ actor {
 };
 
   public shared(msg) func vote(proposalId : Nat, voter: Text, vote : Bool) : async Result.Result<(), DAO.VoteError> {
-    Debug.print("Voting. Caller: " # Principal.toText(msg.caller));
-    await* dao.vote(proposalId, Principal.fromText(voter), vote)
+    Debug.print("Voting.  Voter: " # voter  # " ; Caller: " # Principal.toText(msg.caller));
+    let voting_result = await* dao.vote(proposalId, Principal.fromText(voter), vote);
+    switch (voting_result) {
+      case (#err(err)) {
+        Debug.print("Error voting: " # debug_show(err));
+        return #err(err)
+        };
+        case (#ok()) {
+          Debug.print("Vote successful");
+          ignore await processVotingRewards(Principal.fromText(voter));
+        };        
+      };
+    #ok()
   };
 
   public query func getProposal(id : Nat) : async ?DAO.Proposal<ProposalContent> {
@@ -153,6 +217,8 @@ actor {
   public query func getProposals(count : Nat, offset : Nat) : async CommonTypes.PagedResult<DAO.Proposal<ProposalContent>> {
     dao.getProposals(count, offset)
   };
+
+  //----------------------------------------------------------------------------------------
 
   // Rewards
   let rewardSystem = Rewards.Rewards();
@@ -182,9 +248,9 @@ actor {
           case (#err(e)) return #err("Error creating proposal: " # debug_show(e));
           case (#ok(proposalId)) {
             Debug.print("Proposal created with ID: " # debug_show(proposalId));
-            let ?proposal = await getProposal(proposalId);
+            // let ?proposal = await getProposal(proposalId);
              // start auto voting and execution process
-            let result = await* executeRewardProposal(proposal);
+            let result = await* executeRewardProposal(proposalId);
             return #ok(proposalId);
           };
         };
@@ -192,6 +258,30 @@ actor {
       };
     };
   };
+
+  public func processVotingRewards(user : Principal) : async Result.Result<(), Text> {
+    switch (ledger) {
+      case (?l) {    
+        let userbalance = await l.getBalance(user);
+        Debug.print("User balance: " # debug_show(userbalance));
+        let resultRewarding = await rewardSystem.addReward(user, userbalance);         
+            Debug.print("Rewarded user: " # Principal.toText(user));
+            // create a proposal to distribute the rewards
+            let resultCreatingPropsal = await createVotingRewardsProposal(user);
+            switch (resultCreatingPropsal) {
+              case (#err(e)) return #err("Error creating proposal: " # debug_show(e));
+              case (#ok(proposalId)) {
+                Debug.print("Proposal created with ID: " # debug_show(proposalId));
+                // start auto voting and execution process
+                let result = await* executeRewardProposal(proposalId);
+                return #ok;
+              };   
+            };
+        };
+      case (null) return #err("Ledger not initialized");
+    };
+  };
+         
 
   public func createVotingRewardsProposal(user : Principal) : async Result.Result<Nat, DAO.CreateProposalError> {
     let votingRewards = await rewardSystem.getVotingRewards();
@@ -205,8 +295,8 @@ actor {
   };
 
   // Function to execute the proposal (mint tokens)
-  func executeRewardProposal(proposal : DAO.Proposal<ProposalContent>) : async* Result.Result<(), Text> {
-    Debug.print("Executing proposal: " # debug_show(proposal.id));
+  func executeRewardProposal(proposalId : Nat) : async* Result.Result<(), Text> {
+    Debug.print("Executing proposal: " # debug_show(proposalId));
     // TODO auto voting rewards
     
     // Debug.print("Tokens minted as per proposal: " # proposal.content.action);
@@ -228,20 +318,20 @@ actor {
       };
   };
 
-  public shared(msg) func executeTransferFunds(proposalId : Nat) : async Result.Result<(), Text> {
-      switch (await getProposal(proposalId)) {
-          case (null) #err("Proposal not found");
-          case (?proposal) {
-              switch (proposal.content) {
-                  case (#transferFunds(transfer)) {
-                      // Implement fund transfer logic
-                      #err("Fund transfer not implemented yet")
-                  };
-                  case (_) #err("Invalid proposal type for fund transfer");
-              };
-          };
-      };
-  };
+  // public shared(msg) func executeTransferFunds(proposalId : Nat) : async Result.Result<(), Text> {
+  //     switch (await getProposal(proposalId)) {
+  //         case (null) #err("Proposal not found");
+  //         case (?proposal) {
+  //             switch (proposal.content) {
+  //                 case (#transferFunds(transfer)) {
+  //                     // Implement fund transfer logic
+  //                     #err("Fund transfer not implemented yet")
+  //                 };
+  //                 case (_) #err("Invalid proposal type for fund transfer");
+  //             };
+  //         };
+  //     };
+  // };
 
   public shared(msg) func executeAdjustParameters(proposalId : Nat) : async Result.Result<(), Text> {
       switch (await getProposal(proposalId)) {
@@ -264,10 +354,21 @@ actor {
     let votingRewards = await rewardSystem.getVotingRewards();
     
     for ((user, reward) in votingRewards.rewards.vals()) {
-      let transferResult = await Ledger.transfer(user, reward);
-      if (not transferResult) {
-        return #err("Failed to transfer rewards to user: " # Principal.toText(user));
-      };
+      switch (ledger) {
+            case (?l) {
+              let transferResult = await l.transfer(user, reward);
+              // switch (transferResult) {
+              //   case (true) {                   
+              //     };
+              //   case (false) {
+              //     #err("Error during fund transfer");
+              //     };
+              // };
+            };
+            case null {};
+          };  
+           
+      
     };
     
     await rewardSystem.resetVotingRewards();
@@ -291,6 +392,8 @@ actor {
         };
          #ok;
    };
+
+
   // Вспомогательные функции
 
   func isAdmin(caller: Principal) : Bool {
