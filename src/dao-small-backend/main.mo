@@ -45,15 +45,14 @@ actor {
             // Implement code update logic
             #err("Code update not implemented yet")
         };
-        case (#transferFunds(transfer)) {
-            // Implement fund transfer logic
+        case (#transferFunds(transfer)) {            
             let result = await Ledger.transfer(transfer.recipient, transfer.amount);
             switch (result) {
               case (true) { 
                 #ok 
                 };
               case (false) {
-                #err("Fund transfer not implemented yet");
+                #err("Error during fund transfer");
                 };
             };
         };
