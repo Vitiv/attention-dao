@@ -118,6 +118,26 @@ module {
             votingRewards := HashMap.HashMap<Principal, Nat>(10, Principal.equal, Principal.hash);
         };
 
+        public func resetUserReward(user : Principal) : async Result.Result<(), Text> {
+            switch (userRewards.get(user)) {
+                case null #err("User not found");
+                case (?reward) {
+                    userRewards.put(
+                        user,
+                        {
+                            var totalReward = 0;
+                            var lastRewardTime = reward.lastRewardTime;
+                            var votingParticipation = 0;
+                            var stakedAmount = reward.stakedAmount;
+                            var stakingPeriod = reward.stakingPeriod;
+                            var stakingStartTime = reward.stakingStartTime;
+                        },
+                    );
+                    #ok(());
+                };
+            };
+        };
+
         public func addReward(user : Principal, rewardCents : Nat) : async () {
             Debug.print("RewardSystem.addReward: Adding reward of " # Nat.toText(rewardCents) # " cents FOCUS to user: " # Principal.toText(user));
             switch (userRewards.get(user)) {

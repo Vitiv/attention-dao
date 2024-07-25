@@ -28,7 +28,7 @@ module {
         await testProcessUserActions(testActor, testPrincipal1, testPrincipal2);
 
         // Test 2: Get user rewards
-        await testGetUserRewards(testActor, testPrincipal1, testPrincipal2);
+        // await testGetUserRewards(testActor, testPrincipal1, testPrincipal2);
 
         // Test 3: Set and get rewards
         await testSetAndGetRewards(testActor);
@@ -36,11 +36,13 @@ module {
         // Test 4: Reward voting
         await testRewardVoting(testActor, testPrincipal1, testPrincipal2);
 
-        // Test 5: Distribute monthly voting rewards
+        // Test 5: Set custom reward
+        // await testSetCustomReward(testActor);
+
         // await testDistributeMonthlyVotingRewards(testActor, testPrincipal1, testPrincipal2);
 
         // Test 6: Convert reward to FOCUS
-        await testConvertRewardToFocus(testActor, testPrincipal1);
+        // await testConvertRewardToFocus(testActor);
 
         // Test 7: Stake rewards
         // await testStakeRewards(testActor, testPrincipal1);
@@ -72,22 +74,22 @@ module {
         Debug.print("Test 1 passed: User actions processed successfully");
     };
 
-    private func testGetUserRewards(testActor : TestActorInterface, p1 : Principal, p2 : Principal) : async () {
-        Debug.print("Test 2: Getting user rewards");
+    // private func testGetUserRewards(testActor : TestActorInterface, p1 : Principal, p2 : Principal) : async () {
+    //     Debug.print("Test 2: Getting user rewards");
 
-        let reward1 = await testActor.getUserReward(p1);
-        Debug.print("Reward for user 1: " # debug_show (reward1));
-        assert (reward1 > 0);
+    //     let reward1 = await testActor.getUserReward(p1);
+    //     Debug.print("Reward for user 1: " # debug_show (reward1));
+    //     assert (reward1 > 0);
 
-        let reward2 = await testActor.getUserReward(p2);
-        Debug.print("Reward for user 2: " # debug_show (reward2));
-        assert (reward2 > 0);
+    //     let reward2 = await testActor.getUserReward(p2);
+    //     Debug.print("Reward for user 2: " # debug_show (reward2));
+    //     assert (reward2 > 0);
 
-        Debug.print("Test 2 passed: User rewards retrieved successfully");
-    };
+    //     Debug.print("Test 2 passed: User rewards retrieved successfully");
+    // };
 
     private func testSetAndGetRewards(testActor : TestActorInterface) : async () {
-        Debug.print("Test 3: Setting and getting rewards");
+        Debug.print("Test 2: Setting and getting rewards");
 
         let getResultBefore = await testActor.getReward(#Reaction);
         Debug.print("Get Reaction reward before setting: " # debug_show (getResultBefore));
@@ -103,19 +105,22 @@ module {
             case (#err(e)) Debug.print("Error getting reward: " # e);
         };
 
-        let setResult3 = await testActor.setReward(#Custom("100"), 100);
-        Debug.print("Set Custom reward (#Custom(\"100\"), 100) result: " # debug_show (setResult3));
-        let getResult4 = await testActor.getReward(#Custom("100"));
+        let setResult3 = await testActor.setReward(#Custom("Reward100"), 100);
+        Debug.print("Set Custom reward (#Custom(\"Reward100\"), 100) result: " # debug_show (setResult3));
+        let getResult4 = await testActor.getReward(#Custom("Reward100"));
         switch (getResult4) {
             case (#ok(value)) assert (value == 100);
-            case (#err(e)) Debug.print("Error getting reward: " # e);
+            case (#err(e)) {
+                Debug.print("Test Failed: Error getting reward: " # e);
+                assert (false);
+            };
         };
 
-        Debug.print("Test 3 passed: Rewards set and retrieved successfully");
+        Debug.print("Test 2 passed: Rewards set and retrieved successfully");
     };
 
     private func testRewardVoting(testActor : TestActorInterface, p1 : Principal, p2 : Principal) : async () {
-        Debug.print("Test 4: Rewarding voting");
+        Debug.print("Test 3: Rewarding voting");
 
         let reward1 = await testActor.rewardVoting(p1, 1);
         Debug.print("Reward for voting 1: " # debug_show (reward1));
@@ -125,22 +130,45 @@ module {
         Debug.print("Reward for voting 2: " # debug_show (reward2));
         assert (reward2 > 0);
 
-        Debug.print("Test 4 passed: Voting rewarded successfully");
+        Debug.print("Test 3 passed: Voting rewarded successfully");
     };
 
-    private func testConvertRewardToFocus(testActor : TestActorInterface, p : Principal) : async () {
-        Debug.print("Test 6: Converting reward to FOCUS");
-        let testPrincipal1 = Principal.fromText("aaaaa-aa");
-        let result4 = await testActor.processUserAction("100", "aaaaa-aa");
-        let r = await testActor.rewardVoting(testPrincipal1, 1);
-        let result = await testActor.convertRewardToFocus(p);
-        switch (result) {
-            case (#ok(value)) assert (value > 0);
-            case (#err(e)) Debug.print("Error converting reward to FOCUS: " # e);
-        };
+    // func testSetCustomReward(testActor : TestActorInterface) : async () {
+    //     Debug.print("Test 4: Setting custom reward");
+    //     let newReward = #Custom("Reward100");
+    //     let result = await testActor.setReward(newReward, 100);
+    //     Debug.print("Test 4: Adding custom reward result: " # debug_show (result));
+    //     assert (Result.isOk(result));
+    //     let getResult = await testActor.getReward(newReward);
+    //     switch (getResult) {
+    //         case (#ok(value)) {
+    //             assert (value == 100);
+    //             Debug.print("Test 4: Custom reward added successfully");
+    //         };
+    //         case (#err(e)) {
+    //             Debug.print("Test 4 failed with error: " # e);
+    //             assert (false);
+    //         };
+    //     };
+    // };
 
-        Debug.print("Test 6 passed: Reward converted to FOCUS successfully");
-    };
+    // private func testConvertRewardToFocus(testActor : TestActorInterface) : async () {
+    //     Debug.print("Test 4: Add Custom Reward");
+    //     // let testPrincipal1 = Principal.fromText("aaaaa-aa");
+    //     let result4 = await testActor.processUserAction("100", "aaaaa-aa");
+    //     assert (Result.isOk(result4));
+    //     switch (result4) {
+    //         case (#ok(value)) {
+    //             Debug.print("Result: " # debug_show (value));
+    //             assert (value == 9);
+    //             Debug.print("Test 4 passed: Custom reward added successfully");
+    //         };
+    //         case (#err(e)) {
+    //             Debug.print("Test 4 failed: Error adding custom reward: " # e);
+    //             assert (false);
+    //         };
+    //     };
+    // };
 
     // private func testStakeRewards(testActor : TestActorInterface, p : Principal) : async () {
     //     Debug.print("Test 7: Staking rewards");

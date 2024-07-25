@@ -2,11 +2,11 @@ import Debug "mo:base/Debug";
 import HashMap "mo:base/HashMap";
 import Iter "mo:base/Iter";
 import Nat "mo:base/Nat";
-import Nat8 "mo:base/Nat8";
-import Token "mo:icrc1/ICRC1/Canisters/Token";
+// import Nat8 "mo:base/Nat8";
+// import Token "mo:icrc1/ICRC1/Canisters/Token";
 import Principal "mo:base/Principal";
 import Result "mo:base/Result";
-import Error "mo:base/Error";
+// import Error "mo:base/Error";
 import Cycles "mo:base/ExperimentalCycles";
 
 import CommonTypes "./CommonTypes";
@@ -36,13 +36,20 @@ actor Main {
 
   var ledger : ?Ledger.Ledger = null;
 
-    public shared(msg) func initializeLedger() : async Result.Result<Text, Text> {
-       Cycles.add<system>(30_000_000_000);
-        ledger := ?Ledger.Ledger();
-        switch (ledger) {
-            case (?l) await l.createToken("FOCUS", "FOCUS", Principal.toText(msg.caller));
-            case (null) #err("Failed to initialize ledger");
+    public shared(msg) func initLedger() : async Result.Result<(Nat, Text, Text), Text> {
+       switch (ledger) {
+        case (?l) {
+          #err("Ledger already initialized");
+          };
+          case (null) {       
+            Cycles.add<system>(30_000_000_000);        
+            ledger := ?Ledger.Ledger();
+            switch (ledger) {
+                case (?l) await l.createToken("FOCUS", "FOCUS", Principal.toText(msg.caller));
+                case (null) #err("Failed to initialize ledger");
+            };
         };
+       };
     };
 
     //--------------------------------------------------------------
@@ -55,19 +62,21 @@ actor Main {
                 balance;
                };
             case null {
-                ignore await initializeLedger();
+                ignore await initLedger();
                 Debug.print("main.getVotingPower: Ledger initialized");
                 0
             };
         };
     };
 
-    public shared(msg) func executeTransferFunds(proposalId : Nat) : async Result.Result<(), Text> {
+    func executeTransferFunds(proposalId : Nat) : async Result.Result<(), Text> {
         switch (await getProposal(proposalId)) {
             case (null) #err("Proposal not found");
             case (?proposal) {
                 switch (proposal.content) {
                     case (#transferFunds(transfer)) {
+                      Debug.print("main.executeTransferFunds: transfer.amount: " # Nat.toText(transfer.amount));
+                      Debug.print("main.executeTransferFunds: transfer.recipient: " # Principal.toText(transfer.recipient));
                         switch (ledger) {
                             case (?l) {
                                 let transferResult = await l.transfer(transfer.recipient, transfer.amount);
@@ -85,6 +94,7 @@ actor Main {
             };
         };
     };
+    
   system func preupgrade() {
     daoStableData := dao.toStableData();
     membersEntries := Iter.toArray(members.entries());
@@ -223,7 +233,7 @@ actor Main {
   // Rewards
   let rewardSystem = Rewards.Rewards();
 
-  public shared(msg) func processUserAction(action: Text, user : Text) : async Result.Result<Nat, Text> {
+  func processUserAction(action: Text, user : Text) : async Result.Result<Nat, Text> {
     let actionType = CT.textToActionType(action);
     Debug.print("Processing user action: " # action);
     
@@ -235,7 +245,9 @@ actor Main {
       case (#ok) {
         
         let reward = await rewardSystem.getUserReward(Principal.fromText(user));
-        Debug.print("Got Reward for user " # user # ": " # debug_show(reward));
+        Debug.print("processUserAction: Got Reward for user from RewardSystem " # user # ": " # debug_show(reward));
+        let user_balance = await* getVotingPower(Principal.fromText(user));
+        Debug.print("processUserAction: User balance from ledger before proposal: " # debug_show(user_balance));
         let proposalContent : ProposalContent = #transferFunds({
           amount = reward;
           recipient = Principal.fromText(user); 
@@ -247,10 +259,13 @@ actor Main {
         switch (proposalResult) {
           case (#err(e)) return #err("Error creating proposal: " # debug_show(e));
           case (#ok(proposalId)) {
-            Debug.print("Proposal created with ID: " # debug_show(proposalId));
+            Debug.print("processUserAction: Proposal created with ID: " # debug_show(proposalId));
             // let ?proposal = await getProposal(proposalId);
-             // start auto voting and execution process
+             // TODO start auto voting and execution process
             let result = await* executeRewardProposal(proposalId);
+            Debug.print("processUserAction: Proposal executed successfully, " # debug_show(result));
+            let resetRewarding = await rewardSystem.resetUserReward(Principal.fromText(user));
+            Debug.print("processUserAction: Reward reset for user: " # debug_show(Principal.fromText(user)) # ", result: " # debug_show(resetRewarding));
             return #ok(proposalId);
           };
         };
@@ -259,21 +274,26 @@ actor Main {
     };
   };
 
-  public func processVotingRewards(user : Principal) : async Result.Result<(), Text> {
+  func processVotingRewards(user : Principal) : async Result.Result<(), Text> {
     switch (ledger) {
       case (?l) {    
         let userbalance = await l.getBalance(user);
         Debug.print("User balance: " # debug_show(userbalance));
         let resultRewarding = await rewardSystem.addReward(user, userbalance);         
-            Debug.print("Rewarded user: " # Principal.toText(user));
+            Debug.print("processVotingRewards:Rewarded user: " # Principal.toText(user));
+            Debug.print("processVotingRewards:Result rewarding: " # debug_show(resultRewarding));
             // create a proposal to distribute the rewards
-            let resultCreatingPropsal = await createVotingRewardsProposal(user);
+            let resultCreatingPropsal = await createVotingRewardsProposal(user, userbalance);
             switch (resultCreatingPropsal) {
-              case (#err(e)) return #err("Error creating proposal: " # debug_show(e));
+              case (#err(e)) return #err("processVotingRewards: Error creating proposal: " # debug_show(e));
               case (#ok(proposalId)) {
-                Debug.print("Proposal created with ID: " # debug_show(proposalId));
+                Debug.print("processVotingRewards: Proposal created with ID: " # debug_show(proposalId));
                 // start auto voting and execution process
                 let result = await* executeRewardProposal(proposalId);
+                Debug.print("processVotingRewards: Proposal executed successfully, " # debug_show(result));
+                let resetRewarding = await rewardSystem.resetUserReward(user);
+                Debug.print("processVotingRewards: Reward reset for user: " # Principal.toText(user));
+                Debug.print("processVotingRewards: Result reseting: " # debug_show(resetRewarding));
                 return #ok;
               };   
             };
@@ -283,10 +303,10 @@ actor Main {
   };
          
 
-  public func createVotingRewardsProposal(user : Principal) : async Result.Result<Nat, DAO.CreateProposalError> {
+  public func createVotingRewardsProposal(user : Principal, amount : Nat) : async Result.Result<Nat, DAO.CreateProposalError> {
     let votingRewards = await rewardSystem.getVotingRewards();
     let proposalContent : ProposalContent = #transferFunds({
-      amount = votingRewards.totalReward;
+      amount = amount;
       recipient = user; 
       purpose = #toFund("Voting Rewards Distribution");
     });
@@ -296,14 +316,15 @@ actor Main {
 
   // Function to execute the proposal (mint tokens)
   func executeRewardProposal(proposalId : Nat) : async* Result.Result<(), Text> {
-    Debug.print("Executing proposal: " # debug_show(proposalId));
+    Debug.print("executeRewardProposal: Executing proposal: " # debug_show(proposalId));
     // TODO auto voting rewards
     
-    // Debug.print("Tokens minted as per proposal: " # proposal.content.action);
+    let transfer_result = await executeTransferFunds(proposalId);
+    Debug.print("executeRewardProposal: Transfer result: " # debug_show(transfer_result));
     #ok
   };
   
-  public shared(msg) func executeCodeUpdate(proposalId : Nat) : async Result.Result<(), Text> {
+  func executeCodeUpdate(proposalId : Nat) : async Result.Result<(), Text> {
       switch (await getProposal(proposalId)) {
           case (null) #err("Proposal not found");
           case (?proposal) {
@@ -318,22 +339,7 @@ actor Main {
       };
   };
 
-  // public shared(msg) func executeTransferFunds(proposalId : Nat) : async Result.Result<(), Text> {
-  //     switch (await getProposal(proposalId)) {
-  //         case (null) #err("Proposal not found");
-  //         case (?proposal) {
-  //             switch (proposal.content) {
-  //                 case (#transferFunds(transfer)) {
-  //                     // Implement fund transfer logic
-  //                     #err("Fund transfer not implemented yet")
-  //                 };
-  //                 case (_) #err("Invalid proposal type for fund transfer");
-  //             };
-  //         };
-  //     };
-  // };
-
-  public shared(msg) func executeAdjustParameters(proposalId : Nat) : async Result.Result<(), Text> {
+  func executeAdjustParameters(proposalId : Nat) : async Result.Result<(), Text> {
       switch (await getProposal(proposalId)) {
           case (null) #err("Proposal not found");
           case (?proposal) {
@@ -377,19 +383,19 @@ actor Main {
   };
 
    public func distributeMonthlyVotingRewards() : async Result.Result<(), Text> {
-      for (user in members.keys()) {
-          let proposalResult = await createVotingRewardsProposal(user);
-          switch (proposalResult) {
-              case (#err(e)) return #err("Error creating voting rewards proposal: " # debug_show (e));
-              case (#ok(proposalId)) {
-                  Debug.print("Voting rewards proposal created with ID: " # debug_show (proposalId));
-                  let ?proposal = await getProposal(proposalId);
-                  // Here you would typically wait for the voting period to end
-                  // For simplicity, we'll execute it immediately in this example
-                  ignore await* executeVotingRewardsProposal(proposal);
-              };
-          };           
-        };
+      // for (user in members.keys()) {
+      //     let proposalResult = await createVotingRewardsProposal(user, amount);
+      //     switch (proposalResult) {
+      //         case (#err(e)) return #err("Error creating voting rewards proposal: " # debug_show (e));
+      //         case (#ok(proposalId)) {
+      //             Debug.print("Voting rewards proposal created with ID: " # debug_show (proposalId));
+      //             let ?proposal = await getProposal(proposalId);
+      //             // Here you would typically wait for the voting period to end
+      //             // For simplicity, we'll execute it immediately in this example
+      //             ignore await* executeVotingRewardsProposal(proposal);
+      //         };
+      //     };           
+      //   };
          #ok;
    };
 
@@ -426,8 +432,8 @@ actor Main {
       distributeMonthlyVotingRewards = func() : async Result.Result<(), Text> {
         await distributeMonthlyVotingRewards()
       };
-      createVotingRewardsProposal = func (id : Principal) : async Result.Result<Nat, DAO.CreateProposalError>{
-        await createVotingRewardsProposal(id)
+      createVotingRewardsProposal = func (id : Principal, amount : Nat) : async Result.Result<Nat, DAO.CreateProposalError>{
+        await createVotingRewardsProposal(id, amount)
       };
       createProposal = func (content: ProposalContent) : async Result.Result<Nat, DAO.CreateProposalError> {
         await createProposal(content)

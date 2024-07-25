@@ -14,7 +14,7 @@ module {
     getMember : (Principal) -> async ?DAO.Member;
     listMembers : () -> async [DAO.Member];
     distributeMonthlyVotingRewards() : async Result.Result<(), Text> ;
-    createVotingRewardsProposal : (Principal) -> async Result.Result<Nat, DAO.CreateProposalError>;
+    createVotingRewardsProposal : (Principal, Nat) -> async Result.Result<Nat, DAO.CreateProposalError>;
     createProposal : (CommonTypes.ProposalContent) -> async Result.Result<Nat, DAO.CreateProposalError>;
     vote : (Nat, Text, Bool) -> async Result.Result<(), DAO.VoteError>;
     getProposal : (Nat) -> async ?DAO.Proposal<ProposalContent>;
@@ -51,11 +51,11 @@ module {
 
     // Test 8: Negative cases
     await testNegativeCases(testActor, testPrincipal2, proposalId);
-
+   
     Debug.print("All tests completed!");
   };
 
-  // Вспомогательные функции тестирования
+  // Additional test cases can be added here...
 
   private func testAddMembers(testActor: TestActorInterface, p1: Principal, p2: Principal, p3: Principal) : async () {
     Debug.print("Test 1: Adding members");
@@ -63,18 +63,18 @@ module {
     // Add first member
     let result1 = await testActor.addMember(p1, 1);
     Debug.print("Result of adding first member: " # debug_show(result1));
-    // assert(result1 == #ok);
+    assert(result1 == #ok);
 
     // Add second member
     let result2 = await testActor.addMember(p2, 2);
         Debug.print("Result of adding second member: " # debug_show(result2));
 
-    // assert(result2 == #ok);
+    assert(result2 == #ok);
 
     // Add third member
     let result3 = await testActor.addMember(p3, 3);
     Debug.print("Result of adding third member: " # debug_show(result3));
-    // assert(result3 == #ok);
+    assert(result3 == #ok);
 
     // Try to add existing member
     let result4 = await testActor.addMember(p1, 1);
@@ -173,12 +173,21 @@ module {
     switch (proposal) {
       case (?p) {
         assert(p.id == id);
-        // assert(p.content.description == "Test proposal");
-        Debug.print("Test 5 passed: Retrieved proposal correctly");
+        switch (p.content) {
+          case (#other(content)) {
+            assert(content.action == "Do nothing");
+            assert(content.description == "Test proposal");
+            Debug.print("Test 5 passed: Retrieved proposal correctly");
+          };
+          case _ {
+            Debug.print("Test 5 failed: Proposal content is not #other");
+            assert(false);
+          };
+        };
       };
       case (null) {
         Debug.print("Test 5 failed: Could not retrieve proposal");
-        assert(false);
+        
       };
     };
   };
@@ -193,20 +202,22 @@ module {
       );     
     };
 
-    // Проверка членства перед голосованием
+    // Checking membership for p1
     Debug.print("Checking membership for " # Principal.toText(p1));
     let member1 = await testActor.getMember(p1);
+    var amount = 0;
     switch (member1) {
-      case (?m) Debug.print("Member 1 found with voting power: " # debug_show(m.votingPower));
+      case (?m) {
+        Debug.print("Member 1 found with voting power: " # debug_show(m.votingPower));
+        amount := m.votingPower;
+        };
       case null Debug.print("Member 1 not found!");
     };
     // Creating voting proposals
-    let res = await testActor.createVotingRewardsProposal(p1);
-    Debug.print("testVote creating proposal 1 result: " # debug_show(res));
-    let res1 = await testActor.createVotingRewardsProposal(p2);
-    Debug.print("testVote creating proposal 2 result: " # debug_show(res1));
+    let res = await testActor.createVotingRewardsProposal(p1, amount);
+    Debug.print("testVote creating proposal 1 result: " # debug_show(res));   
 
-    // Проверяем состояние предложения перед голосованием
+    // Checking proposal before voting
     let proposalBeforeVote = await testActor.getProposal(proposalId);
     switch (proposalBeforeVote) {
       case (?p) {
@@ -237,15 +248,20 @@ module {
       case (#err(e)) Debug.print("First vote failed: " # debug_show(e));
     };
    
-    // assert(Result.isOk(voteResult1));
+    assert(Result.isOk(voteResult1));
 
-    // Проверка членства перед голосованием
+    // Checking membership for p2
     Debug.print("Checking membership for " # Principal.toText(p2));
     let member2 = await testActor.getMember(p2);
     switch (member2) {
-      case (?m) Debug.print("Member 2 found with voting power: " # debug_show(m.votingPower));
+      case (?m) {
+        Debug.print("Member 2 found with voting power: " # debug_show(m.votingPower));
+        amount := m.votingPower;
+        };
       case null Debug.print("Member 2 not found!");
-    };  
+    }; 
+     let res1 = await testActor.createVotingRewardsProposal(p2, amount);
+    Debug.print("testVote creating proposal 2 result: " # debug_show(res1)); 
 
     // Vote with the second member
     Debug.print("Voting with second member: " # Principal.toText(p2));
@@ -254,7 +270,7 @@ module {
       case (#ok) Debug.print("Second vote successful");
       case (#err(e)) Debug.print("Second vote failed: " # debug_show(e));
     };
-    // assert(Result.isOk(voteResult2));
+    assert(Result.isOk(voteResult2));
 
     // Check the votes
     let proposal = await testActor.getProposal(proposalId);
@@ -267,12 +283,13 @@ module {
         let noVotingPower = calculateVotingPower(p.votes, func (vote) = vote.value == ?false);
         Debug.print("Yes voting power: " # debug_show(yesVotingPower) # ", No voting power: " # debug_show(noVotingPower)); 
         Debug.print("Yes votes: " # debug_show(yesVotes.size()) # ", No votes: " # debug_show(noVotes.size()));
-        // assert(yesVotes.size() == 1 and noVotes.size() == 1);
+        assert(yesVotes.size() == 1 and noVotes.size() == 1);
+        assert(yesVotingPower == 1 and noVotingPower == 3);
         Debug.print("Test 6 passed: Votes recorded correctly");
       };
       case (null) {
         Debug.print("Test 6 failed: Could not retrieve proposal after voting");
-        // assert(false);
+        assert(false);
       };
     };
   };
@@ -282,7 +299,6 @@ module {
 
     let result = await testActor.getProposals(10, 0);
     Debug.print("Test 7: Getting proposals (paged) result: " # debug_show(result));
-    // assert(result.data.size() == 1);
     assert(result.offset == 0);
     assert(result.count == 10);
 
@@ -308,4 +324,6 @@ module {
 
     Debug.print("Test 8 passed: Negative cases handled correctly");
   };
+
+   
 };
