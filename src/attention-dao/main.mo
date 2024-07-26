@@ -57,6 +57,7 @@ actor Main {
     func getVotingPower(user : Principal) : async* Nat {
         switch (ledger) {
             case (?l) { 
+                Cycles.add<system>(100_000);
                 let balance = await l.getBalance(user);
                 Debug.print("main.getVotingPower: l.getBalance result: " # Nat.toText(balance));
                 balance;
@@ -79,6 +80,7 @@ actor Main {
                       Debug.print("main.executeTransferFunds: transfer.recipient: " # Principal.toText(transfer.recipient));
                         switch (ledger) {
                             case (?l) {
+                                Cycles.add<system>(500_000);
                                 let transferResult = await l.transfer(transfer.recipient, transfer.amount);
                                 if (transferResult) {
                                     #ok()
@@ -114,6 +116,7 @@ actor Main {
         case (#transferFunds(transfer)) { 
           switch (ledger) {
             case (?l) {
+              Cycles.add<system>(500_000);
               let result = await l.transfer(transfer.recipient, transfer.amount);
               switch (result) {
                 case (true) { 
@@ -168,6 +171,7 @@ actor Main {
         members.put(id, newMember);
         switch (ledger) {
             case (?l) { 
+              Cycles.add<system>(500_000);
               let res = l.transfer(id, votingPower);
             };
             case (null) return #otherError("Error when adding tokens");
@@ -276,7 +280,8 @@ actor Main {
 
   func processVotingRewards(user : Principal) : async Result.Result<(), Text> {
     switch (ledger) {
-      case (?l) {    
+      case (?l) {   
+        Cycles.add<system>(100_000); 
         let userbalance = await l.getBalance(user);
         Debug.print("User balance: " # debug_show(userbalance));
         let resultRewarding = await rewardSystem.addReward(user, userbalance);         
@@ -362,6 +367,7 @@ actor Main {
     for ((user, reward) in votingRewards.rewards.vals()) {
       switch (ledger) {
             case (?l) {
+              Cycles.add<system>(500_000);
               let transferResult = await l.transfer(user, reward);
               // switch (transferResult) {
               //   case (true) {                   
