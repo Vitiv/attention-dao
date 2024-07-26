@@ -26,4 +26,8 @@ dist/
 
 .mops
 
+**/dao-small-frontend/
 front-dfx.json
+package.json
+package-lock.json
+tsconfig.json

@@ -10,11 +10,11 @@ dfx start --clean --background
 dfx deploy
 
 # Call the initLedger function
-dfx canister call dao-small-backend initLedger
+dfx canister call attention-dao initLedger
 
 echo "Setup completed"
 
-dfx canister call dao-small-backend runTests
+dfx canister call attention-dao runTests
 
 echo "Tests completed"
 
