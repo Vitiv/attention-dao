@@ -36,7 +36,7 @@ module {
 
             minter := pre_mint_account;
 
-            Cycles.add<system>(30_000_000_000);
+            Cycles.add<system>(120_000_000_000);
             let new_token_canister = await Token.Token({
                 name = name;
                 symbol = symbol;

@@ -33,3 +33,5 @@ package-lock.json
 tsconfig.json
 
 test/
+
+canister_ids.json

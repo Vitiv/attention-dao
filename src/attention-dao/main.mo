@@ -42,7 +42,7 @@ actor Main {
           #err("Ledger already initialized");
           };
           case (null) {       
-            Cycles.add<system>(30_000_000_000);        
+            Cycles.add<system>(120_000_000_000);        
             ledger := ?Ledger.Ledger();
             switch (ledger) {
                 case (?l) await l.createToken("FOCUS", "FOCUS", Principal.toText(msg.caller));
