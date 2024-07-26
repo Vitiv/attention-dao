@@ -31,3 +31,5 @@ front-dfx.json
 package.json
 package-lock.json
 tsconfig.json
+
+test/
