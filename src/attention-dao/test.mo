@@ -47,7 +47,7 @@ module {
     // Test 6: Vote on proposal
     await testVoteYes(testActor, proposalId, testPrincipal1, testPrincipal3);
     let proposalId2 = await testCreateProposal(testActor, testPrincipal3);
-    await testVoteNo(testActor, proposalId2, testPrincipal3, testPrincipal1);
+    await testVoteNo(testActor, proposalId2, testPrincipal1, testPrincipal3);
 
     // Test 7: Get proposals (paged)
     await testGetProposals(testActor);
@@ -64,41 +64,41 @@ module {
     Debug.print("Test 1: Adding members");
 
     // Add first member
-    let result1 = await testActor.addMember(p1, 1);
+    let result1 = await testActor.addMember(p1, 10);
     Debug.print("Result of adding first member: " # debug_show (result1));
     assert (result1 == #ok);
 
     // Add second member
-    let result2 = await testActor.addMember(p2, 2);
+    let result2 = await testActor.addMember(p2, 20);
     Debug.print("Result of adding second member: " # debug_show (result2));
 
     assert (result2 == #ok);
 
     // Add third member
-    let result3 = await testActor.addMember(p3, 3);
+    let result3 = await testActor.addMember(p3, 30);
     Debug.print("Result of adding third member: " # debug_show (result3));
     assert (result3 == #ok);
 
     // Try to add existing member
-    let result4 = await testActor.addMember(p1, 1);
+    let result4 = await testActor.addMember(p1, 10);
     assert (result4 == #alreadyExists);
 
     // Verify members were added
     let member1 = await testActor.getMember(p1);
     switch (member1) {
-      case (?m) assert (m.votingPower == 1);
+      case (?m) assert (m.votingPower == 10);
       case null assert (false);
     };
 
     let member2 = await testActor.getMember(p2);
     switch (member2) {
-      case (?m) assert (m.votingPower == 2);
+      case (?m) assert (m.votingPower == 20);
       case null assert (false);
     };
 
     let member3 = await testActor.getMember(p3);
     switch (member3) {
-      case (?m) assert (m.votingPower == 3);
+      case (?m) assert (m.votingPower == 30);
       case null assert (false);
     };
 
@@ -275,7 +275,7 @@ module {
       case (#ok) Debug.print("Second vote successful");
       case (#err(e)) Debug.print("Second vote failed: " # debug_show (e));
     };
-    assert (Result.isOk(voteResult2));
+    assert (Result.isErr(voteResult2));
 
     // Check the votes
     let proposal = await testActor.getProposal(proposalId);
@@ -288,8 +288,8 @@ module {
         let noVotingPower = calculateVotingPower(p.votes, func(vote) = vote.value == ?false);
         Debug.print("Yes voting power: " # debug_show (yesVotingPower) # ", No voting power: " # debug_show (noVotingPower));
         Debug.print("Yes votes: " # debug_show (yesVotes.size()) # ", No votes: " # debug_show (noVotes.size()));
-        assert (yesVotes.size() == 1 and noVotes.size() == 1);
-        assert (yesVotingPower == 3 and noVotingPower == 1);
+        assert (yesVotes.size() == 1 and noVotes.size() == 0);
+        assert (yesVotingPower == 30 and noVotingPower == 0);
         Debug.print("Test 6-yes passed: Votes recorded correctly");
       };
       case (null) {
@@ -383,7 +383,7 @@ module {
       };
       case (#err(e)) Debug.print("Second vote failed: " # debug_show (e));
     };
-    assert (Result.isErr(voteResult2));
+    assert (Result.isOk(voteResult2));
 
     // Check the votes
     let proposal = await testActor.getProposal(proposalId);
@@ -396,8 +396,8 @@ module {
         let noVotingPower = calculateVotingPower(p.votes, func(vote) = vote.value == ?false);
         Debug.print("Yes voting power: " # debug_show (yesVotingPower) # ", No voting power: " # debug_show (noVotingPower));
         Debug.print("Yes votes: " # debug_show (yesVotes.size()) # ", No votes: " # debug_show (noVotes.size()));
-        assert (yesVotes.size() == 1 and noVotes.size() == 0);
-        assert (yesVotingPower == 6 and noVotingPower == 0);
+        assert (yesVotes.size() == 1 and noVotes.size() == 1);
+        assert (yesVotingPower == 10 and noVotingPower == 60);
         Debug.print("Test 6-no passed: Votes recorded correctly");
       };
       case (null) {

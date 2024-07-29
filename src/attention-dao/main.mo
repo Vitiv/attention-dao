@@ -79,7 +79,7 @@ actor Main {
             Debug.print("main.executeTransferFunds: transfer.recipient: " # Principal.toText(transfer.recipient));
             switch (ledger) {
               case (?l) {
-                Cycles.add<system>(500_000);
+                Cycles.add<system>(100_000);
                 let transferResult = await l.transfer(transfer.recipient, transfer.amount);
                 if (transferResult) {
                   let newBalance = await l.getBalance(transfer.recipient);
@@ -117,7 +117,7 @@ actor Main {
       case (#transferFunds(transfer)) {
         switch (ledger) {
           case (?l) {
-            Cycles.add<system>(500_000);
+            Cycles.add<system>(100_000);
             let result = await l.transfer(transfer.recipient, transfer.amount);
             switch (result) {
               case (true) {
@@ -173,7 +173,7 @@ actor Main {
 
         switch (ledger) {
           case (?l) {
-            Cycles.add<system>(500_000);
+            Cycles.add<system>(100_000);
             let res = await l.transfer(id, votingPower);
             if (res) {
               members.put(id, newMember);
@@ -370,7 +370,7 @@ actor Main {
   //   for ((user, reward) in votingRewards.rewards.vals()) {
   //     switch (ledger) {
   //       case (?l) {
-  //         Cycles.add<system>(500_000);
+  //         Cycles.add<system>(100_000);
   //         let transferResult = await l.transfer(user, reward);
   //         // switch (transferResult) {
   //         //   case (true) {
