@@ -54,19 +54,23 @@ actor Main {
   //--------------------------------------------------------------
 
   func getVotingPower(user : Principal) : async* Nat {
-    switch (ledger) {
-      case (?l) {
-        Cycles.add<system>(100_000);
-        let balance = await l.getBalance(user);
-        Debug.print("main.getVotingPower: l.getBalance result: " # Nat.toText(balance));
-        balance;
-      };
-      case null {
-        ignore await initLedger();
-        Debug.print("main.getVotingPower: Ledger initialized");
-        0;
-      };
+    switch (members.get(user)) {
+      case null return 0;
+      case (?member) return member.votingPower;
     };
+    // switch (ledger) {
+    //   case (?l) {
+    //     Cycles.add<system>(50_000);
+    //     let balance = await l.getBalance(user);
+    //     Debug.print("main.getVotingPower: l.getBalance result: " # Nat.toText(balance));
+    //     balance;
+    //   };
+    //   case null {
+    //     ignore await initLedger();
+    //     Debug.print("main.getVotingPower: Ledger initialized");
+    //     0;
+    //   };
+    // };
   };
 
   func executeTransferFunds(proposalId : Nat) : async Result.Result<(), Text> {
