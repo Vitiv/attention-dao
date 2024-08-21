@@ -23,9 +23,9 @@ module {
         // Initialize default rewards
         actionRewards.put(#Reaction, 1);
         actionRewards.put(#Review, 10);
-        actionRewards.put(#Registration, 20); // 1 FOCUS = 100 cents
+        actionRewards.put(#Registration, 20); // TODO 1 FOCUS = 100 cents
 
-        // Staking parameters
+        // TODO Staking parameters
         let STAKING_PERIODS : [Nat] = [2, 4, 6, 8]; // in years
         let STAKING_MULTIPLIERS : [Float] = [1.0, 1.5, 2.0, 3.0];
         let BASE_STAKING_REWARD_RATE : Float = 0.05; // 5% per year
