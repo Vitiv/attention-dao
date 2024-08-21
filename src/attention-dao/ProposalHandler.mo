@@ -22,28 +22,23 @@ module {
             let proposalId = proposal.id;
             let rejectionTime = Time.now();
             
-            // 1. Обновление статуса предложения
+            // 1. Update proposal status to "rejected"
             let updateResult = await* updateProposalStatus(proposalId, #rejected({ time = rejectionTime }));
             if (not updateResult) {
                 return #err("Status update failed");
             };
 
-            // 2. Возврат токенов (если применимо)
+            // 2. Return tokens to proposer
             let returnResult = await* returnTokens(proposalId);
             if (not returnResult) {
                 return #err("Tokens return failed");
             };
 
-            // 3. Уведомление участников
+            // 3. Notify participants
             await* notifyParticipants(proposalId, "Proposal rejected");
 
-            // 4. Обновление репутации
-            // let reputationResult = await* updateReputation(proposal.proposerId, -1);
-            // if (not reputationResult) {
-            //     return #error("Не удалось обновить репутацию");
-            // };
-
-            // 5. Логирование
+           
+            // 4. Log the rejection
             Debug.print("Proposal #" # Nat.toText(proposalId) # " rejected at " # Int.toText(rejectionTime));
 
             #ok
@@ -52,39 +47,39 @@ module {
         }
     };
 
-// Вспомогательные функции
+// Additional functions
 
 func updateProposalStatus(proposalId : Nat, status : DAO.ProposalStatusLogEntry) : async* Bool {
-        // Заглушка: всегда возвращает true
+        // TODO true
         true
     };
 
     func returnTokens(proposalId : Nat) : async* Bool {
-        // Заглушка: всегда возвращает true
+        // TODO
         true
     };
 
     func notifyParticipants(proposalId : Nat, message : Text) : async* () {
-        // Заглушка: ничего не делает
+        // TODO
     };
 
     func updateReputation(userId : Principal, change : Int) : async* Bool {
-        // Заглушка: всегда возвращает true
+        // TODO
         true
     };
 
     func checkDuplicateProposal(content : ProposalContent) : async* Bool {
-        // Заглушка: всегда возвращает false (нет дубликатов)
+        // TODO
         false
     };
 
     func isValidProposalType(action : Text) : Bool {
-        // Заглушка: всегда возвращает true
+        // TODO
         true
     };
 
     func checkComplianceWithDAORules(content : ProposalContent) : async* Bool {
-        // Заглушка: всегда возвращает true
+        // TODO
         true
     };
 
@@ -93,26 +88,26 @@ func updateProposalStatus(proposalId : Nat, status : DAO.ProposalStatusLogEntry)
     public func validateProposal(content : ProposalContent) : async* Result.Result<(), [Text]> {
         let errorBuffer = Buffer.Buffer<Text>(0);
 
-        // if (Text.size(content.description) < 10 or Text.size(content.description) > 1000) {
-        //     errorBuffer.add("Описание предложения должно быть от 10 до 1000 символов");
+        // if (Text.size(content.description) < 4 or Text.size(content.description) > 1000) {
+        //     errorBuffer.add("Description should be between 4 and 1000 characters");
         // };
 
-        // if (Text.size(content.action) < 5 or Text.size(content.action) > 500) {
-        //     errorBuffer.add("Действие предложения должно быть от 5 до 500 символов");
+        // if (Text.size(content.action) < 4 or Text.size(content.action) > 100) {
+        //     errorBuffer.add("Action should be between 4 and 100 characters");
         // };
 
         // let isDuplicate = await* checkDuplicateProposal(content);
         // if (isDuplicate) {
-        //     errorBuffer.add("Предложение дублирует существующее");
+        //     errorBuffer.add("Duplicate proposal");
         // };
 
         // if (not isValidProposalType(content.action)) {
-        //     errorBuffer.add("Недопустимый тип предложения");
+        //     errorBuffer.add("Wrong proposal type");
         // };
 
         let isCompliant = await* checkComplianceWithDAORules(content);
         if (not isCompliant) {
-            errorBuffer.add("Предложение не соответствует правилам DAO");
+            errorBuffer.add("Proposal violates DAO rules");
         };
 
         if (errorBuffer.size() > 0) {
@@ -122,19 +117,15 @@ func updateProposalStatus(proposalId : Nat, status : DAO.ProposalStatusLogEntry)
         };
     };
 
-// Вспомогательные функции
-
     func getTokenBalance(userId : Principal) : async* Nat {
-        // Получение баланса токенов пользователя
-        // Реализация зависит от вашей системы управления токенами
+        //TODO 
         1
     };
 
 
 
     func getProposerReputation(userId : Principal) : async* Int {
-        // Получение репутации пользователя
-        // Реализация зависит от вашей системы репутации
+        // TODO aVa reputation integration
         1
     };
 
