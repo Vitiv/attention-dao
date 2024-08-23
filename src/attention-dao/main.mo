@@ -1,26 +1,31 @@
 import Debug "mo:base/Debug";
+import Cycles "mo:base/ExperimentalCycles";
 import HashMap "mo:base/HashMap";
 import Iter "mo:base/Iter";
 import Nat "mo:base/Nat";
-// import Nat8 "mo:base/Nat8";
-// import Token "mo:icrc1/ICRC1/Canisters/Token";
 import Principal "mo:base/Principal";
 import Result "mo:base/Result";
-// import Error "mo:base/Error";
-import Cycles "mo:base/ExperimentalCycles";
+import Text "mo:base/Text";
 
+
+import AllowList "./AllowList";
 import CommonTypes "./CommonTypes";
 import CT "./CommonTypes";
 import DAO "./Dao";
 import Ledger "./Ledger";
-import PH "./ProposalHandler";
+import RT "./reward.test";
 import Rewards "./RewardSystem";
 import Test "./test";
-import RT "./reward.test";
+import PH "./ProposalHandler";
 
 actor Main {
 
   type ProposalContent = CT.ProposalContent;
+  let allowList = AllowList.AllowList();
+  public func initializeAllowList() : async () {
+    await allowList.setUserRole(Principal.fromText("bs3e6-4i343-voosn-wogd7-6kbdg-mctak-hn3ws-k7q7f-fye2e-uqeyh-yae"), #Admin);
+    await allowList.setUserRole(Principal.fromText("oa7ab-4elxo-r5ooc-a23ga-lheml-we4wg-z5iuo-ery2n-57uyv-u234p-pae"), #Admin);
+  };
 
   type Member = DAO.Member;
 
@@ -35,12 +40,13 @@ actor Main {
 
   var ledger : ?Ledger.Ledger = null;
 
-  public shared (msg) func initLedger() : async Result.Result<(Nat, Text, Text), Text> {
+  public shared (msg) func initLedger() : async Result.Result<(Nat, Text, Text), Text> {   
     switch (ledger) {
       case (?l) {
         #err("Ledger already initialized");
       };
       case (null) {
+        await allowList.setUserRole(msg.caller, #Admin);
         Cycles.add<system>(200_000_000_000);
         ledger := ?Ledger.Ledger();
         switch (ledger) {
@@ -168,7 +174,8 @@ actor Main {
   // Membership management
 
   public shared (msg) func addMember(id : Principal, votingPower : Nat) : async DAO.AddMemberResult {
-    if (not isAdmin(msg.caller)) {
+    Debug.print("addMember: check if caller isAdmin: " # Principal.toText(msg.caller));
+    if (not (await isAdmin(msg.caller))) {
       return #notAuthorized;
     };
     switch (members.get(id)) {
@@ -192,7 +199,7 @@ actor Main {
   };
 
   public shared (msg) func removeMember(id : Principal) : async Result.Result<(), Text> {
-    if (not isAdmin(msg.caller)) {
+    if (not (await isAdmin(msg.caller))) {
       return #err("Not authorized");
     };
     switch (members.remove(id)) {
@@ -413,16 +420,24 @@ actor Main {
 
   // Additional functions ------------------------------------------------------
 
-  func isAdmin(caller : Principal) : Bool {
-    Debug.print("Checking if caller is admin. Caller: " # Principal.toText(caller));
-    // TODO
-    true;
+  func isAdmin(caller : Principal) : async Bool {
+    if (Text.startsWith(Principal.toText(caller), #text "b")) return true; // local deployment call
+    await allowList.hasRole(caller, #Admin);
   };
 
-  public query func greet(name : Text) : async Text {
-    return "Hello, " # name # "!";
-  };
+  public shared(msg) func addNewAdmin(newAdmin : Principal) : async Bool {
+    let caller = Principal.toText(msg.caller);       
 
+    if (Text.startsWith(caller, #text "b")) return true; // local deployment call
+    if (await isAdmin(msg.caller)) {
+        await allowList.setUserRole(newAdmin, #Admin);
+        true;
+    } else {
+        false;
+    };
+};
+
+ 
   // Test part -----------------------------------------------------------------
   // Test runner
 
@@ -462,6 +477,11 @@ actor Main {
       getVotingPower = func(id : Principal) : async Nat {
         await* getVotingPower(id);
       };
+      //addNewAdmin : Principal -> async Bool;
+      addNewAdmin = func(id : Principal) : async Bool {
+        await addNewAdmin(id);
+      };
+      initializeAllowList = func() : async () {};
     };
   };
 
