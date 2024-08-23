@@ -174,14 +174,13 @@ actor Main {
   // Membership management
 
   public shared (msg) func addMember(id : Principal, votingPower : Nat) : async DAO.AddMemberResult {
-    Debug.print("addMember: check if caller isAdmin: " # Principal.toText(msg.caller));
     if (not (await isAdmin(msg.caller))) {
       return #notAuthorized;
     };
     switch (members.get(id)) {
       case (null) {
         let newMember : Member = { id = id; votingPower = votingPower };
-
+        await allowList.setUserRole(id, #Member);
         switch (ledger) {
           case (?l) {
             Cycles.add<system>(100_000);
@@ -210,6 +209,10 @@ actor Main {
 
   public query func getMember(id : Principal) : async ?Member {
     members.get(id);
+  };
+
+  public func getRole(id : Principal) : async ?AllowList.Role {
+    await allowList.getRole(id);
   };
 
   public query func listMembers() : async [Member] {
