@@ -13,8 +13,8 @@ Attention DAO is a Decentralized Autonomous Organization built on the Internet C
   - [Table of Contents](#table-of-contents)
   - [Prerequisites](#prerequisites)
   - [Installation](#installation)
-  - [Deployment](#deployment)
   - [Local Testing](#local-testing)
+  - [Deployment](#deployment)
   - [Usage](#usage)
     - [Interacting with the DAO](#interacting-with-the-dao)
     - [Key Features](#key-features)
@@ -46,6 +46,14 @@ Before you begin, ensure you have the following installed:
    mops install
    ```
    
+## Local Testing
+
+To test the project deployment locally, use the 
+
+```
+sh ./setup_and_tests.sh
+```
+   
 
 ## Deployment
 
@@ -61,12 +69,73 @@ Before you begin, ensure you have the following installed:
 
 3. Once deployed, the CLI will display the canister IDs and web interfaces for your project.
 
-## Local Testing
 
-To test the project deployment locally, use the 
+## Usage
+
+### Interacting with the DAO
+
+1. Access the DAO frontend by opening the URL provided after deployment.
+
+2. Connect your Internet Identity to authenticate.
+
+3. Once authenticated, you can:
+   - Create proposals
+   - Vote on existing proposals
+   - Publish events
+   - Subscribe to events
+   - React to notifications
+
+### Key Features
+
+- **Proposal Creation and Voting**: Members can create proposals and vote on them to influence the DAO's decisions.
+- **Event Publishing**: Users can publish events through the Event Hub Broadcaster.
+- **Event Subscription**: Users can subscribe to events based on their interests.
+- **Reward System**: Users are rewarded with $FOCUS tokens for various activities within the ecosystem.
+- **Tokenomics**: The $FOCUS token is at the heart of the Attention DAO economy, incentivizing participation and governance.
+
+### Example: Creating a Proposal
+
+```javascript
+import { dao_backend } from './<your_dao_handler>.js';
+
+async function createProposal(description, action) {
+  const daoActor = await dao_backend();
+  const proposalContent = {
+    other: { description, action }
+  };
+  const result = await daoActor.createProposal(proposalContent);
+  console.log("Proposal creation result:", result);
+}
+
+createProposal("Implement new feature", "Add user profiles to the platform");
 ```
-sh ./setup_and_tests.sh
-```
+
+### Example: Voting on a Proposal
+
+```javascript
+import { dao_backend } from './<your_dao_handler>.js';
+
+async function voteOnProposal(proposalId, vote) {
+  const daoActor = await dao_backend();
+  const result = await daoActor.vote(proposalId, vote);
+  console.log("Voting result:", result);
+}
+
+voteOnProposal(1, true); // Vote 'yes' on proposal with ID 1
+
+## Deployment
+
+1. Start the local Internet Computer replica:
+   ```
+   dfx start --background
+   ```
+
+2. Deploy the canisters:
+   ```
+   dfx deploy
+   ```
+
+3. Once deployed, the CLI will display the canister IDs and web interfaces for your project.
 
 ## Usage
 
@@ -240,6 +309,3 @@ Please ensure your code adheres to the project's coding standards and include te
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
-
-
-
