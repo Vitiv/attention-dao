@@ -49,22 +49,23 @@ module {
 
 // Additional functions
 
-func updateProposalStatus(proposalId : Nat, status : DAO.ProposalStatusLogEntry) : async* Bool {
-        // TODO true
+    func updateProposalStatus(proposalId : Nat, status : DAO.ProposalStatusLogEntry) : async* Bool {
+        // TODO if additional states are needed
         true
     };
 
     func returnTokens(proposalId : Nat) : async* Bool {
-        // TODO
+        // TODO if necessary
         true
     };
 
     func notifyParticipants(proposalId : Nat, message : Text) : async* () {
-        // TODO
+        // TODO Notify author if necessary
     };
 
     func updateReputation(userId : Principal, change : Int) : async* Bool {
-        // TODO
+        // TODO move to separate integration module
+        // create publication for aVa reputation canister with correct namespace 
         true
     };
 
