@@ -13,8 +13,8 @@ Attention DAO is a Decentralized Autonomous Organization built on the Internet C
   - [Table of Contents](#table-of-contents)
   - [Prerequisites](#prerequisites)
   - [Installation](#installation)
-  - [Deployment](#deployment)
   - [Local Testing](#local-testing)
+  - [Deployment](#deployment)
   - [Usage](#usage)
     - [Interacting with the DAO](#interacting-with-the-dao)
     - [Key Features](#key-features)
@@ -45,7 +45,13 @@ Before you begin, ensure you have the following installed:
    ```
    mops install
    ```
-   
+
+## Local Testing
+
+To test the project deployment locally, use the 
+```
+sh ./setup_and_tests.sh
+```
 
 ## Deployment
 
@@ -60,13 +66,6 @@ Before you begin, ensure you have the following installed:
    ```
 
 3. Once deployed, the CLI will display the canister IDs and web interfaces for your project.
-
-## Local Testing
-
-To test the project deployment locally, use the 
-```
-sh ./setup_and_tests.sh
-```
 
 ## Usage
 
