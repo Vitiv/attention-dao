@@ -1,0 +1,64 @@
+@startuml
+    participant User
+    participant Frontend
+    participant InternetIdentity as Internet_Identity
+    participant DAOCanister as DAO_Canister
+    participant LedgerCanister as Ledger_Canister
+    participant RewardSystem as Reward_System
+    participant EventHub as Event_Hub
+
+    User->>Frontend: Access Attention DAO
+    Frontend->>InternetIdentity: Authenticate
+    InternetIdentity-->>Frontend: Authentication result
+    Frontend->>DAOCanister: Get DAO info
+    DAOCanister-->>Frontend: DAO info
+    Frontend->>User: Display DAO dashboard
+
+    alt Create Proposal
+        User->>Frontend: Create proposal
+        Frontend->>DAOCanister: Submit proposal
+        DAOCanister->>RewardSystem: Process user action
+        RewardSystem-->>DAOCanister: Action rewarded
+        DAOCanister-->>Frontend: Proposal created
+        Frontend-->>User: Confirmation
+    end
+
+    alt Vote on Proposal
+        User->>Frontend: Vote on proposal
+        Frontend->>DAOCanister: Submit vote
+        DAOCanister->>RewardSystem: Process voting reward
+        RewardSystem-->>DAOCanister: Voting rewarded
+        DAOCanister->>LedgerCanister: Update token balances
+        LedgerCanister-->>DAOCanister: Balances updated
+        DAOCanister-->>Frontend: Vote recorded
+        Frontend-->>User: Confirmation
+    end
+
+    alt Publish Event
+        User->>Frontend: Create event
+        Frontend->>EventHub: Publish event
+        EventHub->>DAOCanister: Notify of event
+        DAOCanister->>RewardSystem: Process event reward
+        RewardSystem-->>DAOCanister: Event rewarded
+        DAOCanister-->>Frontend: Event published
+        Frontend-->>User: Confirmation
+    end
+
+    alt Subscribe to Events
+        User->>Frontend: Set event preferences
+        Frontend->>EventHub: Subscribe to events
+        EventHub-->>Frontend: Subscription confirmed
+        Frontend-->>User: Confirmation
+    end
+
+    alt Receive Notification
+        EventHub->>Frontend: Send event notification
+        Frontend->>User: Display notification
+        User->>Frontend: React to notification
+        Frontend->>DAOCanister: Record reaction
+        DAOCanister->>RewardSystem: Process reaction reward
+        RewardSystem-->>DAOCanister: Reaction rewarded
+        DAOCanister-->>Frontend: Reaction recorded
+        Frontend-->>User: Confirmation
+    end
+@enduml
