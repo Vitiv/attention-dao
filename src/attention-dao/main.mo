@@ -7,7 +7,6 @@ import Principal "mo:base/Principal";
 import Result "mo:base/Result";
 import Text "mo:base/Text";
 
-
 import AllowList "./AllowList";
 import CommonTypes "./CommonTypes";
 import CT "./CommonTypes";
@@ -40,7 +39,7 @@ actor Main {
 
   var ledger : ?Ledger.Ledger = null;
 
-  public shared (msg) func initLedger() : async Result.Result<(Nat, Text, Text), Text> {   
+  public shared (msg) func initLedger() : async Result.Result<(Nat, Text, Text), Text> {
     switch (ledger) {
       case (?l) {
         #err("Ledger already initialized");
@@ -181,16 +180,16 @@ actor Main {
       case (null) {
         let newMember : Member = { id = id; votingPower = votingPower };
         await allowList.setUserRole(id, #Member);
-        switch (ledger) {
-          case (?l) {
-            Cycles.add<system>(100_000);
-            let res = await l.transfer(id, votingPower);
-            if (res) {
-              members.put(id, newMember);
-            } else { return #otherError("Error when adding tokens") };
-          };
-          case (null) return #otherError("Error when getting ledger");
-        };
+        // switch (ledger) {
+        //   case (?l) {
+        // Cycles.add<system>(100_000);
+        // let res = await l.transfer(id, votingPower);
+        // if (res) {
+        members.put(id, newMember);
+        // } else { return #otherError("Error when adding tokens") };
+        // (null) return #otherError("Error when getting ledger");
+        // };
+        // case   };
         #ok;
       };
       case (?_) #alreadyExists;
@@ -428,19 +427,18 @@ actor Main {
     await allowList.hasRole(caller, #Admin);
   };
 
-  public shared(msg) func addNewAdmin(newAdmin : Principal) : async Bool {
-    let caller = Principal.toText(msg.caller);       
+  public shared (msg) func addNewAdmin(newAdmin : Principal) : async Bool {
+    // let caller = Principal.toText(msg.caller);
 
-    if (Text.startsWith(caller, #text "b")) return true; // local deployment call
+    // if (Text.startsWith(caller, #text "b")) return true; // local deployment call
     if (await isAdmin(msg.caller)) {
-        await allowList.setUserRole(newAdmin, #Admin);
-        true;
+      await allowList.setUserRole(newAdmin, #Admin);
+      true;
     } else {
-        false;
+      false;
     };
-};
+  };
 
- 
   // Test part -----------------------------------------------------------------
   // Test runner
 
